@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: mulmi-backend
+
+  datasource:
+    url: jdbc:mysql://localhost:3307/mulmi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: user
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        jdbc:
+          time_zone: Asia/Seoul
+
+server:
+  port: ${SERVER_PORT:8080}
