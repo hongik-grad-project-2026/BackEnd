@@ -3,9 +3,9 @@ spring:
     name: mulmi-backend
 
   datasource:
-    url: jdbc:mysql://localhost:3307/mulmi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-    username: user
-    password: password
+    url: ${DB_URL:jdbc:mysql://localhost:3306/mulmi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
