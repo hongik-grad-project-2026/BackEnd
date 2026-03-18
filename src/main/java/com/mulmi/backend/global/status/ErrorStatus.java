@@ -1,14 +1,14 @@
 package com.mulmi.backend.global.status;
 
-import com.mulmi.backend.global.code.BaseErrorCode;
-import com.mulmi.backend.global.code.ErrorReasonDTO;
+import com.mulmi.backend.global.code.BaseCode;
+import com.mulmi.backend.global.code.ReasonDTO;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
 @Getter
 @AllArgsConstructor
-public enum ErrorStatus implements BaseErrorCode {
+public enum ErrorStatus implements BaseCode {
 
     _INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON500", "서버 에러, 관리자에게 문의 바랍니다."),
     _BAD_REQUEST(HttpStatus.BAD_REQUEST, "COMMON400", "잘못된 요청입니다."),
@@ -20,8 +20,8 @@ public enum ErrorStatus implements BaseErrorCode {
     private final String message;
 
     @Override
-    public ErrorReasonDTO getReason() {
-        return ErrorReasonDTO.builder()
+    public ReasonDTO getReason() {
+        return ReasonDTO.builder()
                 .isSuccess(false)
                 .code(code)
                 .message(message)
@@ -29,8 +29,8 @@ public enum ErrorStatus implements BaseErrorCode {
     }
 
     @Override
-    public ErrorReasonDTO getReasonHttpStatus() {
-        return ErrorReasonDTO.builder()
+    public ReasonDTO getReasonHttpStatus() {
+        return ReasonDTO.builder()
                 .httpStatus(httpStatus)
                 .isSuccess(false)
                 .code(code)

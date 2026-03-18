@@ -1,8 +1,8 @@
 package com.mulmi.backend.global.exception;
 
 import com.mulmi.backend.global.apiPayload.ApiResponse;
-import com.mulmi.backend.global.code.BaseErrorCode;
-import com.mulmi.backend.global.code.ErrorReasonDTO;
+import com.mulmi.backend.global.code.BaseCode;
+import com.mulmi.backend.global.code.ReasonDTO;
 import com.mulmi.backend.global.status.ErrorStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -26,8 +26,8 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(GeneralException.class)
     public ResponseEntity<ApiResponse<Object>> handleGeneralException(GeneralException e) {
-        BaseErrorCode code = e.getCode();
-        ErrorReasonDTO reason = code.getReasonHttpStatus();
+        BaseCode code = e.getCode();
+        ReasonDTO reason = code.getReasonHttpStatus();
 
         log.warn("[GeneralException] Code: {}, Message: {}", reason.getCode(), reason.getMessage());
 
@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
             errors.merge(fieldName, errorMessage, (existing, newMsg) -> existing + ", " + newMsg);
         });
 
-        ErrorReasonDTO reason = ErrorStatus._BAD_REQUEST.getReasonHttpStatus();
+        ReasonDTO reason = ErrorStatus._BAD_REQUEST.getReasonHttpStatus();
 
         return ResponseEntity
                 .status(reason.getHttpStatus())
@@ -83,7 +83,7 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse("Invalid input");
 
-        ErrorReasonDTO reason = ErrorStatus._BAD_REQUEST.getReasonHttpStatus();
+        ReasonDTO reason = ErrorStatus._BAD_REQUEST.getReasonHttpStatus();
 
         return ResponseEntity
                 .status(reason.getHttpStatus())
@@ -104,7 +104,7 @@ public class GlobalExceptionHandler {
     ) {
         log.error("[Exception] Url: {}, Message: {}", request.getRequestURI(), e.getMessage(), e);
 
-        ErrorReasonDTO reason = ErrorStatus._INTERNAL_SERVER_ERROR.getReasonHttpStatus();
+        ReasonDTO reason = ErrorStatus._INTERNAL_SERVER_ERROR.getReasonHttpStatus();
 
         return ResponseEntity
                 .status(reason.getHttpStatus())
