@@ -2,21 +2,8 @@ spring:
   application:
     name: mulmi-backend
 
-  datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/mulmi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-        jdbc:
-          time_zone: Asia/Seoul
+  profiles:
+    default: local
 
 springdoc:
   swagger-ui:
