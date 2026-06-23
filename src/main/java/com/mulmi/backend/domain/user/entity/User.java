@@ -1,4 +1,4 @@
-package com.mulmi.backend.domain.user;
+package com.mulmi.backend.domain.user.entity;
 
 import com.mulmi.backend.domain.user.enums.UserRole;
 import com.mulmi.backend.domain.user.enums.UserStatus;
@@ -31,6 +31,10 @@ public class User extends BaseEntity {
 
     @Column(nullable = false, length = 30)
     private String name;
+
+    //단과대학
+    @Column(nullable = false, length = 50)
+    private String college;
 
     // 학과
     @Column(nullable = false, length = 50)
