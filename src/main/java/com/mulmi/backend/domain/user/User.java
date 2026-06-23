@@ -18,7 +18,10 @@ public class User extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 로그인 ID로 사용할 이메일
+    //학생은 학번, 근로생/조교는 별도의 id로 로그인.
+    @Column(name = "login_id", nullable = false, unique = true, length = 30)
+    private String loginId;
+
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
@@ -33,8 +36,8 @@ public class User extends BaseEntity {
     @Column(nullable = false, length = 50)
     private String dept;
 
-    // 학번
-    @Column(name = "student_id", nullable = false, unique = true, length = 20)
+    // 학번 (학생은 학번, 근로생/조교는 null 가능)
+    @Column(name = "student_id", unique = true, length = 20)
     private String studentId;
 
     @Column(name = "phone_number", nullable = false, length = 20)
