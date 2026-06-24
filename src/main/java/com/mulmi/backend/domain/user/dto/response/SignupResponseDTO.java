@@ -2,7 +2,9 @@ package com.mulmi.backend.domain.user.dto.response;
 
 import com.mulmi.backend.domain.user.enums.UserRole;
 import com.mulmi.backend.domain.user.enums.UserStatus;
+import lombok.Builder;
 
+@Builder
 public record SignupResponseDTO(
         Long userId,
         String loginId,

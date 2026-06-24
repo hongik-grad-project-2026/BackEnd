@@ -6,7 +6,7 @@ import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.enums.UserRole;
 import com.mulmi.backend.domain.user.enums.UserStatus;
 
-public class UserConverter() {
+public class UserConverter {
 
     //dto -> User로 변환
     public static User toUser(
