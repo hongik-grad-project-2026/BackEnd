@@ -1,8 +1,8 @@
 package com.mulmi.backend.global.exception;
 
 import com.mulmi.backend.global.apiPayload.ApiResponse;
-import com.mulmi.backend.global.code.BaseCode;
-import com.mulmi.backend.global.code.ReasonDTO;
+import com.mulmi.backend.global.apiPayload.code.BaseCode;
+import com.mulmi.backend.global.apiPayload.code.ReasonDTO;
 import com.mulmi.backend.global.status.ErrorStatus;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;

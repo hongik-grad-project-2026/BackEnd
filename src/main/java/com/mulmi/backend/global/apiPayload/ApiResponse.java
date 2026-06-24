@@ -3,7 +3,7 @@ package com.mulmi.backend.global.apiPayload;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.mulmi.backend.global.code.BaseCode;
+import com.mulmi.backend.global.apiPayload.code.BaseCode;
 import com.mulmi.backend.global.status.SuccessStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,7 +15,6 @@ public class ApiResponse<T> {
 
     @JsonProperty("isSuccess")
     private final Boolean isSuccess;
-
     private final String code;
     private final String message;
 

@@ -1,4 +1,4 @@
-package com.mulmi.backend.global.code;
+package com.mulmi.backend.global.apiPayload.code;
 
 import lombok.Builder;
 import lombok.Getter;

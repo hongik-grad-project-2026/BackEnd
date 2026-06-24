@@ -1,7 +1,7 @@
 package com.mulmi.backend.global.status;
 
-import com.mulmi.backend.global.code.BaseCode;
-import com.mulmi.backend.global.code.ReasonDTO;
+import com.mulmi.backend.global.apiPayload.code.BaseCode;
+import com.mulmi.backend.global.apiPayload.code.ReasonDTO;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;

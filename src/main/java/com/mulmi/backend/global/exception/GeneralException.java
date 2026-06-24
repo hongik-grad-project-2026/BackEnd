@@ -1,6 +1,6 @@
 package com.mulmi.backend.global.exception;
 
-import com.mulmi.backend.global.code.BaseCode;
+import com.mulmi.backend.global.apiPayload.code.BaseCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
