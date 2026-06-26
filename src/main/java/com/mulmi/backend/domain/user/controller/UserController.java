@@ -2,6 +2,8 @@ package com.mulmi.backend.domain.user.controller;
 
 import com.mulmi.backend.domain.user.dto.request.SignupRequestDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
+import com.mulmi.backend.domain.user.exception.code.UserSuccessCode;
+import com.mulmi.backend.domain.user.service.UserService;
 import com.mulmi.backend.global.apiPayload.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +23,7 @@ public class UserController {
     @PostMapping
     public ApiResponse<SignupResponseDTO> signup(
             @RequestBody @Valid SignupRequestDTO dto){
-        return ApiResponse.onSuccess(UserSuccessCode.CREATED, userService.signup(dto));
+        return ApiResponse.onSuccess(UserSuccessCode.SIGNUP_SUCCESS, userService.signup(dto));
     }
 
     //로그인

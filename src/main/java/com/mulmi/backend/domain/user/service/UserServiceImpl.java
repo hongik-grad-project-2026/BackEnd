@@ -1,0 +1,55 @@
+package com.mulmi.backend.domain.user.service;
+
+import com.mulmi.backend.domain.user.converter.UserConverter;
+import com.mulmi.backend.domain.user.dto.request.SignupRequestDTO;
+import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
+import com.mulmi.backend.domain.user.entity.User;
+import com.mulmi.backend.domain.user.exception.UserException;
+import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
+import com.mulmi.backend.domain.user.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class UserServiceImpl implements UserService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+
+    //회원가입
+    @Override
+    public SignupResponseDTO signup(SignupRequestDTO dto) {
+        validateDuplicateUser(dto); //중복검사 메서드 호출
+
+        String encodedPassword = passwordEncoder.encode(dto.password());
+        User user = UserConverter.toUser(dto, encodedPassword);
+        User savedUser = userRepository.save(user);
+
+        return UserConverter.toSignupResponseDTO(savedUser);
+    }
+
+    //중복 검사 메서드
+    private void validateDuplicateUser(SignupRequestDTO dto) {
+        if (userRepository.existsByLoginId(dto.studentId())) {
+            throw new UserException(UserErrorCode.DUPLICATE_LOGIN_ID);
+        }
+
+        if (userRepository.existsByStudentId(dto.studentId())) {
+            throw new UserException(UserErrorCode.DUPLICATE_STUDENT_ID);
+        }
+
+        if (userRepository.existsByEmail(dto.email())) {
+            throw new UserException(UserErrorCode.DUPLICATE_EMAIL);
+        }
+
+        if (userRepository.existsByPhoneNumber(dto.phoneNumber())) {
+            throw new UserException(UserErrorCode.DUPLICATE_PHONE_NUMBER);
+        }
+    }
+}
