@@ -24,6 +24,7 @@ public class UserServiceImpl implements UserService {
 
     //회원가입
     @Override
+    @Transactional
     public SignupResponseDTO signup(SignupRequestDTO dto) {
         validateDuplicateUser(dto); //중복검사 메서드 호출
 
