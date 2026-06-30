@@ -3,8 +3,8 @@ package com.mulmi.backend.global.apiPayload;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.mulmi.backend.global.code.BaseCode;
-import com.mulmi.backend.global.status.SuccessStatus;
+import com.mulmi.backend.global.apiPayload.code.BaseErrorCode;
+import com.mulmi.backend.global.apiPayload.code.BaseSuccessCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -16,40 +16,33 @@ public class ApiResponse<T> {
     @JsonProperty("isSuccess")
     private final Boolean isSuccess;
 
+    @JsonProperty("code")
     private final String code;
+
+    @JsonProperty("message")
     private final String message;
 
+    @JsonProperty("result")
     @JsonInclude(JsonInclude.Include.NON_NULL)
     private final T result;
 
-    //성공한 경우의 응답
-    public static <T> ApiResponse<T> onSuccess(T result){
-        return new ApiResponse<T>(
-                true,
-                SuccessStatus._OK.getCode(),
-                SuccessStatus._OK.getMessage(),
-                result
-        );
-    }
-
-    // 전달받은 BaseCode의 코드/메시지를 사용해 성공 응답을 생성
-    public static <T> ApiResponse<T> of(BaseCode code, T result) {
+    // 성공한 경우
+    public static <T> ApiResponse<T> onSuccess(BaseSuccessCode code, T result) {
         return new ApiResponse<>(
                 true,
-                code.getReasonHttpStatus().getCode(),
-                code.getReasonHttpStatus().getMessage(),
+                code.getCode(),
+                code.getMessage(),
                 result
         );
     }
 
-    //싫패한 경우의 응답
-    public static <T> ApiResponse<T> onFailure(String code, String message, T result) {
+    // 실패한 경우
+    public static <T> ApiResponse<T> onFailure(BaseErrorCode code, T result) {
         return new ApiResponse<>(
                 false,
-                code,
-                message,
+                code.getCode(),
+                code.getMessage(),
                 result
         );
     }
-
 }

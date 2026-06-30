@@ -1,9 +1,7 @@
-package com.mulmi.backend.global.exception;
+package com.mulmi.backend.global.apiPayload.exception;
 
 import com.mulmi.backend.global.apiPayload.ApiResponse;
-import com.mulmi.backend.global.code.BaseCode;
-import com.mulmi.backend.global.code.ReasonDTO;
-import com.mulmi.backend.global.status.ErrorStatus;
+import com.mulmi.backend.global.apiPayload.code.GeneralErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -26,70 +24,67 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(GeneralException.class)
     public ResponseEntity<ApiResponse<Object>> handleGeneralException(GeneralException e) {
-        BaseCode code = e.getCode();
-        ReasonDTO reason = code.getReasonHttpStatus();
-
-        log.warn("[GeneralException] Code: {}, Message: {}", reason.getCode(), reason.getMessage());
+        log.warn("[GeneralException] Code: {}, Message: {}",
+                e.getCode().getCode(),
+                e.getCode().getMessage()
+        );
 
         return ResponseEntity
-                .status(reason.getHttpStatus())
-                .body(ApiResponse.onFailure(
-                        reason.getCode(),
-                        reason.getMessage(),
-                        null
-                ));
+                .status(e.getCode().getStatus())
+                .body(ApiResponse.onFailure(e.getCode(), null));
     }
 
     /**
-     * @Valid 유효성 검사 실패 처리 (RequestBody)
+     * @Valid 유효성 검사 실패 처리 RequestBody
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Object>> handleMethodArgumentNotValid(
             MethodArgumentNotValidException e,
             HttpServletRequest request
     ) {
-        log.warn("[MethodArgumentNotValid] Url: {}, Message: {}", request.getRequestURI(), e.getMessage());
+        log.warn("[MethodArgumentNotValid] Url: {}, Message: {}",
+                request.getRequestURI(),
+                e.getMessage()
+        );
 
         Map<String, String> errors = new LinkedHashMap<>();
+
         e.getBindingResult().getFieldErrors().forEach(fieldError -> {
             String fieldName = fieldError.getField();
             String errorMessage = Optional.ofNullable(fieldError.getDefaultMessage()).orElse("");
             errors.merge(fieldName, errorMessage, (existing, newMsg) -> existing + ", " + newMsg);
         });
 
-        ReasonDTO reason = ErrorStatus._BAD_REQUEST.getReasonHttpStatus();
-
         return ResponseEntity
-                .status(reason.getHttpStatus())
+                .status(GeneralErrorCode.BAD_REQUEST.getStatus())
                 .body(ApiResponse.onFailure(
-                        reason.getCode(),
-                        reason.getMessage(),
+                        GeneralErrorCode.BAD_REQUEST,
                         errors
                 ));
     }
 
     /**
-     * @Validated 유효성 검사 실패 처리 (RequestParam, PathVariable)
+     * @Validated 유효성 검사 실패 처리 RequestParam, PathVariable
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ApiResponse<Object>> handleConstraintViolation(
             ConstraintViolationException e,
             HttpServletRequest request
     ) {
-        log.warn("[ConstraintViolation] Url: {}, Message: {}", request.getRequestURI(), e.getMessage());
+        log.warn("[ConstraintViolation] Url: {}, Message: {}",
+                request.getRequestURI(),
+                e.getMessage()
+        );
 
         String errorMessage = e.getConstraintViolations().stream()
                 .map(ConstraintViolation::getMessage)
                 .findFirst()
                 .orElse("Invalid input");
 
-        ReasonDTO reason = ErrorStatus._BAD_REQUEST.getReasonHttpStatus();
-
         return ResponseEntity
-                .status(reason.getHttpStatus())
+                .status(GeneralErrorCode.BAD_REQUEST.getStatus())
                 .body(ApiResponse.onFailure(
-                        reason.getCode(),
-                        reason.getMessage(),
+                        GeneralErrorCode.BAD_REQUEST,
                         errorMessage
                 ));
     }
@@ -102,15 +97,16 @@ public class GlobalExceptionHandler {
             Exception e,
             HttpServletRequest request
     ) {
-        log.error("[Exception] Url: {}, Message: {}", request.getRequestURI(), e.getMessage(), e);
-
-        ReasonDTO reason = ErrorStatus._INTERNAL_SERVER_ERROR.getReasonHttpStatus();
+        log.error("[Exception] Url: {}, Message: {}",
+                request.getRequestURI(),
+                e.getMessage(),
+                e
+        );
 
         return ResponseEntity
-                .status(reason.getHttpStatus())
+                .status(GeneralErrorCode.INTERNAL_SERVER_ERROR.getStatus())
                 .body(ApiResponse.onFailure(
-                        reason.getCode(),
-                        reason.getMessage(),
+                        GeneralErrorCode.INTERNAL_SERVER_ERROR,
                         e.getMessage()
                 ));
     }
