@@ -42,19 +42,19 @@ public class UserServiceImpl implements UserService {
     //로그인
     @Override
     public LoginResponseDTO login(LoginRequestDTO dto) {
-        User user = userRepository.findByLoginId(dto.loginId())
+        User user = userRepository.findByLoginId(dto.loginId()) //사용자가 없으면 예외
                 .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
-
+        //비밀번호 비교
         if (!passwordEncoder.matches(dto.password(), user.getPassword())){
             throw new UserException(UserErrorCode.INVALID_PASSWORD);
         }
-
+        //비밀번호가 일치하면 jwt 생서
         String accessToken = jwtUtil.createAccessToken(
                 user.getId(),
                 user.getLoginId(),
                 user.getRole()
         );
-
+        //로그인 응답 변환
         return new LoginResponseDTO(
                 user.getId(),
                 user.getLoginId(),

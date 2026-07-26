@@ -9,4 +9,4 @@ public record LoginResponseDTO(
         String name,
         UserRole role,
         UserStatus status,
-        String acessToken) {}
+        String accessToken) {}
