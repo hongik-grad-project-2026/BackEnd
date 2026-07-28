@@ -1,5 +1,7 @@
 package com.mulmi.backend.global.jwt;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,42 +26,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        //요청 헤더에서 Authorization 값을 가져옴
+
+        // 요청 헤더에서 Authorization 값을 가져옴
         String authorizationHeader = request.getHeader("Authorization");
 
         if (authorizationHeader == null
-                || !authorizationHeader.startsWith("Bearer ")) { //Jwt형식인지 확인
-            filterChain.doFilter(request, response);
-            return; //토큰이 없거나 "Bearer"로 시작하지 않으면 인증 처리를 하지 않고 다음 필터로 넘김
-        }
-        //Bearer부분 제거
-        String token = authorizationHeader.substring(7);
-
-        //Access토큰 검증하기
-        if (!jwtUtil.isTokenValid(token)) {
+                || !authorizationHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        Long userId = jwtUtil.extractUserId(token);
-        String loginId = jwtUtil.extractLoginId(token);
-        String role = jwtUtil.extractRole(token);
+        // Bearer 제거
+        String token = authorizationHeader.substring(7);
 
-        SimpleGrantedAuthority authority =
-                new SimpleGrantedAuthority("ROLE_" + role);
+        try {
+            // JWT를 한 번만 파싱
+            Claims claims = jwtUtil.extractAllClaims(token);
 
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        userId,              // principal: 현재 로그인한 사용자
-                        null,                // credentials: 비밀번호는 다시 보관하지 않음
-                        List.of(authority)   // 권한: ROLE_STUDENT 등
-                );
+            Long userId = jwtUtil.extractUserId(claims);
+            String role = jwtUtil.extractRole(claims);
 
-        SecurityContextHolder.getContext()
-                .setAuthentication(authentication);
+            SimpleGrantedAuthority authority =
+                    new SimpleGrantedAuthority("ROLE_" + role);
+
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            userId,
+                            null,
+                            List.of(authority)
+                    );
+
+            SecurityContextHolder.getContext()
+                    .setAuthentication(authentication);
+
+        } catch (JwtException | IllegalArgumentException e) {
+            SecurityContextHolder.clearContext();
+        }
 
         filterChain.doFilter(request, response);
     }
-
-
 }

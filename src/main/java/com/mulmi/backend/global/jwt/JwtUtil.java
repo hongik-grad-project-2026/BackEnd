@@ -41,34 +41,25 @@ public class JwtUtil {
                 .compact();
     }
 
-    public Long extractUserId(String token) {
-        return Long.valueOf(extractAllClaims(token).getSubject());
-    }
-
-    public String extractLoginId(String token) {
-        return extractAllClaims(token).get("loginId", String.class);
-    }
-
-    public String extractRole(String token) {
-        return extractAllClaims(token).get("role", String.class);
-    }
-    //토큰 검증
-    public boolean isTokenValid(String token) {
-        try {
-            extractAllClaims(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    //jwt를 해석하여 Claims 객체로 만듦
-    private Claims extractAllClaims(String token) {
+    // JWT를 한 번 파싱하여 Claims로 반환
+    public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    public Long extractUserId(Claims claims) {
+        return Long.valueOf(claims.getSubject());
+    }
+
+    public String extractLoginId(Claims claims) {
+        return claims.get("loginId", String.class);
+    }
+
+    public String extractRole(Claims claims) {
+        return claims.get("role", String.class);
     }
 
 }
