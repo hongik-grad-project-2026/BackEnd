@@ -19,26 +19,26 @@ public class User extends BaseEntity {
     private Long id;
 
     //학생은 학번, 근로생/조교는 별도의 id로 로그인.
-    @Column(name = "login_id", nullable = false, unique = true, length = 30)
+    @Column(name = "login_id", nullable = false, unique = true, length = 50)
     private String loginId;
 
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, unique = true, length = 255)
     private String email;
 
     // 암호화된 비밀번호 저장
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String password;
 
-    @Column(nullable = false, length = 30)
+    @Column(name = "user_name", nullable = false, length = 50)
     private String name;
 
     //단과대학
-    @Column(nullable = false, length = 50)
+    @Column(length = 100)
     private String college;
 
     // 학과
-    @Column(nullable = false, length = 50)
-    private String dept;
+    @Column(length = 100)
+    private String department;
 
     // 학번 (학생은 학번, 근로생/조교는 null 가능)
     @Column(name = "student_id", unique = true, length = 20)
@@ -46,6 +46,9 @@ public class User extends BaseEntity {
 
     @Column(name = "phone_number", nullable = false, length = 20)
     private String phoneNumber;
+
+    @Column(name = "profile_image_url", length = 500)
+    private String profileImageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

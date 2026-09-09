@@ -27,11 +27,6 @@ public enum UserErrorCode implements BaseErrorCode {
             "이미 사용 중인 아이디입니다."
     ),
 
-    DUPLICATE_PHONE_NUMBER(
-            HttpStatus.CONFLICT,
-        "USER409_4",
-                "이미 사용 중인 전화번호입니다."
-    ),
     USER_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "USER404_1",

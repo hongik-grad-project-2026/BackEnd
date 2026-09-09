@@ -3,6 +3,7 @@ package com.mulmi.backend.domain.user.service;
 import com.mulmi.backend.domain.user.dto.request.LoginRequestDTO;
 import com.mulmi.backend.domain.user.dto.request.SignupRequestDTO;
 import com.mulmi.backend.domain.user.dto.response.LoginResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
 
 public interface UserService {
@@ -16,4 +17,6 @@ public interface UserService {
     LoginResponseDTO login(
             LoginRequestDTO dto
     );
+
+    MyInfoResponseDTO getMyInfo(Long userId);
 }

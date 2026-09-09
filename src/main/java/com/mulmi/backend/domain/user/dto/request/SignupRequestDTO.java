@@ -27,6 +27,6 @@ public record SignupRequestDTO(
         String college,
 
         @NotBlank(message = "학과(전공)은 필수입니다.")
-        String dept
+        String department
 ) {
 }
