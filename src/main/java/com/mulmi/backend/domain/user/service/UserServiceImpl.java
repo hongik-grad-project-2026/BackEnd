@@ -3,6 +3,7 @@ package com.mulmi.backend.domain.user.service;
 import com.mulmi.backend.domain.user.converter.UserConverter;
 import com.mulmi.backend.domain.user.dto.request.LoginRequestDTO;
 import com.mulmi.backend.domain.user.dto.request.SignupRequestDTO;
+import com.mulmi.backend.domain.user.dto.request.UpdateMyInfoRequestDTO;
 import com.mulmi.backend.domain.user.dto.response.LoginResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
@@ -70,6 +71,21 @@ public class UserServiceImpl implements UserService {
     public MyInfoResponseDTO getMyInfo(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+
+        return UserConverter.toMyInfoResponseDTO(user);
+    }
+
+    @Override
+    @Transactional
+    public MyInfoResponseDTO updateMyInfo(Long userId, UpdateMyInfoRequestDTO dto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+
+        if (userRepository.existsByEmailAndIdNot(dto.email(), userId)) {
+            throw new UserException(UserErrorCode.DUPLICATE_EMAIL);
+        }
+
+        user.updateContactInfo(dto.email(), dto.phoneNumber());
 
         return UserConverter.toMyInfoResponseDTO(user);
     }
