@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.user.service;
 
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
+import com.mulmi.backend.domain.user.dto.request.UpdateMyInfoRequestDTO;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.enums.UserRole;
 import com.mulmi.backend.domain.user.enums.UserStatus;
@@ -76,5 +77,71 @@ class UserServiceImplTest {
                 .isInstanceOf(UserException.class)
                 .extracting("code")
                 .isEqualTo(UserErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    void updateMyInfoChangesEmailAndPhoneNumber() {
+        User user = createUser();
+        UpdateMyInfoRequestDTO request = new UpdateMyInfoRequestDTO(
+                "new@example.com",
+                "01098765432"
+        );
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(userRepository.existsByEmailAndIdNot("new@example.com", 1L))
+                .willReturn(false);
+
+        MyInfoResponseDTO result = userService.updateMyInfo(1L, request);
+
+        assertThat(result.email()).isEqualTo("new@example.com");
+        assertThat(result.phoneNumber()).isEqualTo("01098765432");
+        assertThat(user.getEmail()).isEqualTo("new@example.com");
+        assertThat(user.getPhoneNumber()).isEqualTo("01098765432");
+    }
+
+    @Test
+    void updateMyInfoThrowsWhenEmailIsAlreadyInUse() {
+        User user = createUser();
+        UpdateMyInfoRequestDTO request = new UpdateMyInfoRequestDTO(
+                "duplicate@example.com",
+                "01098765432"
+        );
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(userRepository.existsByEmailAndIdNot("duplicate@example.com", 1L))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> userService.updateMyInfo(1L, request))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.DUPLICATE_EMAIL);
+    }
+
+    @Test
+    void updateMyInfoThrowsWhenUserDoesNotExist() {
+        UpdateMyInfoRequestDTO request = new UpdateMyInfoRequestDTO(
+                "new@example.com",
+                "01098765432"
+        );
+        given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.updateMyInfo(999L, request))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.USER_NOT_FOUND);
+    }
+
+    private User createUser() {
+        return User.builder()
+                .id(1L)
+                .loginId("C123456")
+                .studentId("C123456")
+                .password("encoded-password")
+                .name("홍길동")
+                .email("hong@example.com")
+                .phoneNumber("01012345678")
+                .college("공과대학")
+                .department("컴퓨터공학과")
+                .role(UserRole.STUDENT)
+                .status(UserStatus.ACTIVE)
+                .build();
     }
 }

@@ -2,6 +2,7 @@ package com.mulmi.backend.domain.user.controller;
 
 import com.mulmi.backend.domain.user.dto.request.LoginRequestDTO;
 import com.mulmi.backend.domain.user.dto.request.SignupRequestDTO;
+import com.mulmi.backend.domain.user.dto.request.UpdateMyInfoRequestDTO;
 import com.mulmi.backend.domain.user.dto.response.LoginResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
@@ -13,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,6 +50,16 @@ public class UserController {
         return ApiResponse.onSuccess(
                 UserSuccessCode.FOUND,
                 userService.getMyInfo(userId)
+        );
+    }
+
+    @PatchMapping("/me")
+    public ApiResponse<MyInfoResponseDTO> updateMyInfo(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody @Valid UpdateMyInfoRequestDTO dto) {
+        return ApiResponse.onSuccess(
+                UserSuccessCode.UPDATED,
+                userService.updateMyInfo(userId, dto)
         );
     }
 
