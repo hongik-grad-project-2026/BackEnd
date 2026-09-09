@@ -4,6 +4,7 @@ import com.mulmi.backend.domain.user.converter.UserConverter;
 import com.mulmi.backend.domain.user.dto.request.LoginRequestDTO;
 import com.mulmi.backend.domain.user.dto.request.SignupRequestDTO;
 import com.mulmi.backend.domain.user.dto.response.LoginResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.exception.UserException;
@@ -65,6 +66,14 @@ public class UserServiceImpl implements UserService {
         );
     }
 
+    @Override
+    public MyInfoResponseDTO getMyInfo(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+
+        return UserConverter.toMyInfoResponseDTO(user);
+    }
+
     //중복 검사 메서드
     private void validateDuplicateUser(SignupRequestDTO dto) {
         if (userRepository.existsByLoginId(dto.studentId())) {
@@ -79,8 +88,5 @@ public class UserServiceImpl implements UserService {
             throw new UserException(UserErrorCode.DUPLICATE_EMAIL);
         }
 
-        if (userRepository.existsByPhoneNumber(dto.phoneNumber())) {
-            throw new UserException(UserErrorCode.DUPLICATE_PHONE_NUMBER);
-        }
     }
 }

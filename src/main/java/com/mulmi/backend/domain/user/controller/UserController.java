@@ -3,12 +3,15 @@ package com.mulmi.backend.domain.user.controller;
 import com.mulmi.backend.domain.user.dto.request.LoginRequestDTO;
 import com.mulmi.backend.domain.user.dto.request.SignupRequestDTO;
 import com.mulmi.backend.domain.user.dto.response.LoginResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
 import com.mulmi.backend.domain.user.exception.code.UserSuccessCode;
 import com.mulmi.backend.domain.user.service.UserService;
 import com.mulmi.backend.global.apiPayload.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,6 +38,16 @@ public class UserController {
         return ApiResponse.onSuccess(
                 UserSuccessCode.LOGIN_SUCCESS,
                 userService.login(dto)
+        );
+    }
+
+    //내 정보 조회
+    @GetMapping("/me")
+    public ApiResponse<MyInfoResponseDTO> getMyInfo(
+            @AuthenticationPrincipal Long userId) {
+        return ApiResponse.onSuccess(
+                UserSuccessCode.FOUND,
+                userService.getMyInfo(userId)
         );
     }
 
