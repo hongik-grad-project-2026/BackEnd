@@ -35,9 +35,9 @@ jobs:
 
     env:
       SPRING_PROFILES_ACTIVE: local
-      DB_URL: jdbc:mysql://127.0.0.1:3306/mulmi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
-      DB_USERNAME: user
-      DB_PASSWORD: password
+      SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/mulmi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       JWT_TOKEN_SECRETKEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
