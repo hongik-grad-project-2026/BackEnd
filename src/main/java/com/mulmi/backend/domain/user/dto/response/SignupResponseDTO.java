@@ -12,7 +12,7 @@ public record SignupResponseDTO(
         String email,
         String phoneNumber,
         String college,
-        String dept,
+        String department,
         UserRole role,
         UserStatus status
 ) {
