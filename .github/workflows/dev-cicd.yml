@@ -94,3 +94,13 @@ jobs:
             ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:dev-latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: SSM으로 개발 서버 배포
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: python3 deploy/send_ssm_command.py
