@@ -32,7 +32,7 @@ public class SecurityConfig {
                                 "/api/users",
                                 "/api/users/login",
                                 "/api/health",
-                                "/swagger",
+                                "/mulmi-api",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/api-docs",

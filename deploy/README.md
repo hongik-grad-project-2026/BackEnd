@@ -26,7 +26,7 @@ Add migrations and switch back to `validate` before using this deployment
 configuration for production.
 
 After merging, the workflow should report `Deployment succeeded`. Check
-`http://<EC2_PUBLIC_IP>/api/health` and `http://<EC2_PUBLIC_IP>/swagger`.
+`http://<EC2_PUBLIC_IP>/api/health` and `http://<EC2_PUBLIC_IP>/mulmi-api`.
 The EC2 public IP can change after a stop/start; use the current address in the
 EC2 console. If deployment fails, inspect its SSM command ID in Systems Manager
 Run Command and run `sudo docker logs mulmi-backend --tail 100` on EC2.
