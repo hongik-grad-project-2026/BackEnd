@@ -30,3 +30,7 @@ logging:
     root: INFO
     org.hibernate.SQL: INFO
     org.springframework.web: INFO
+
+jwt:
+  token:
+    secret-key: ${JWT_TOKEN_SECRETKEY}
