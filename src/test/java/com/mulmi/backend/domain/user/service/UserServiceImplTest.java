@@ -129,6 +129,39 @@ class UserServiceImplTest {
                 .isEqualTo(UserErrorCode.USER_NOT_FOUND);
     }
 
+    @Test
+    void withdrawChangesStatusAndRecordsDeletedTime() {
+        User user = createUser();
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        userService.withdraw(1L);
+
+        assertThat(user.getStatus()).isEqualTo(UserStatus.WITHDRAWN);
+        assertThat(user.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void withdrawThrowsWhenUserDoesNotExist() {
+        given(userRepository.findById(999L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.withdraw(999L))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    void withdrawnUserCannotAccessMyInfo() {
+        User user = createUser();
+        user.withdraw();
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> userService.getMyInfo(1L))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.INACTIVE_USER);
+    }
+
     private User createUser() {
         return User.builder()
                 .id(1L)

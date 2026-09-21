@@ -24,6 +24,11 @@ public enum UserSuccessCode implements BaseSuccessCode {
             HttpStatus.OK,
             "USER200_3",
             "사용자 정보가 수정되었습니다."
+    ),
+    WITHDRAWN(
+            HttpStatus.OK,
+            "USER200_4",
+            "회원탈퇴가 완료되었습니다."
     );
 
     private final HttpStatus status;
