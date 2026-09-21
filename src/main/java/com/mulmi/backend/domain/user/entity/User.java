@@ -62,4 +62,9 @@ public class User extends BaseEntity {
         this.email = email;
         this.phoneNumber = phoneNumber;
     }
+
+    public void withdraw() {
+        this.status = UserStatus.WITHDRAWN;
+        markDeleted();
+    }
 }

@@ -8,6 +8,7 @@ import com.mulmi.backend.domain.user.dto.response.LoginResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
 import com.mulmi.backend.domain.user.entity.User;
+import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.UserException;
 import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
@@ -50,6 +51,9 @@ public class UserServiceImpl implements UserService {
         if (!passwordEncoder.matches(dto.password(), user.getPassword())){
             throw new UserException(UserErrorCode.INVALID_CREDENTIALS);
         }
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new UserException(UserErrorCode.INACTIVE_USER);
+        }
         //비밀번호가 일치하면 jwt 생서
         String accessToken = jwtUtil.createAccessToken(
                 user.getId(),
@@ -69,8 +73,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public MyInfoResponseDTO getMyInfo(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        User user = findActiveUser(userId);
 
         return UserConverter.toMyInfoResponseDTO(user);
     }
@@ -78,8 +81,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public MyInfoResponseDTO updateMyInfo(Long userId, UpdateMyInfoRequestDTO dto) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        User user = findActiveUser(userId);
 
         if (userRepository.existsByEmailAndIdNot(dto.email(), userId)) {
             throw new UserException(UserErrorCode.DUPLICATE_EMAIL);
@@ -88,6 +90,25 @@ public class UserServiceImpl implements UserService {
         user.updateContactInfo(dto.email(), dto.phoneNumber());
 
         return UserConverter.toMyInfoResponseDTO(user);
+    }
+
+    // 회원탈퇴
+    @Override
+    @Transactional
+    public void withdraw(Long userId) {
+        User user = findActiveUser(userId);
+
+        user.withdraw();
+    }
+
+    private User findActiveUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new UserException(UserErrorCode.INACTIVE_USER);
+        }
+        return user;
     }
 
     //중복 검사 메서드
