@@ -24,6 +24,11 @@ public enum UserSuccessCode implements BaseSuccessCode {
             HttpStatus.OK,
             "USER200_3",
             "사용자 정보가 수정되었습니다."
+    ),
+    LOGOUT_SUCCESS(
+            HttpStatus.OK,
+            "USER200_5",
+            "로그아웃이 완료되었습니다."
     );
 
     private final HttpStatus status;

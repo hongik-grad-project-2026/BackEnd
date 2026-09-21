@@ -19,6 +19,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
+    private final TokenBlacklist tokenBlacklist;
 
     @Override
     protected void doFilterInternal(
@@ -38,6 +39,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Bearer 제거
         String token = authorizationHeader.substring(7);
+
+        if (tokenBlacklist.isRevoked(token)) {
+            SecurityContextHolder.clearContext();
+            filterChain.doFilter(request, response);
+            return;
+        }
 
         try {
             // JWT를 한 번만 파싱

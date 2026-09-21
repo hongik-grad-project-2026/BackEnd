@@ -2,6 +2,7 @@ package com.mulmi.backend.global.config;
 
 import com.mulmi.backend.global.jwt.JwtAuthenticationFilter;
 import com.mulmi.backend.global.jwt.JwtUtil;
+import com.mulmi.backend.global.jwt.TokenBlacklist;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtUtil jwtUtil;
+    private final TokenBlacklist tokenBlacklist;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -41,7 +43,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtUtil),
+                        new JwtAuthenticationFilter(jwtUtil, tokenBlacklist),
                         UsernamePasswordAuthenticationFilter.class
                 );
 

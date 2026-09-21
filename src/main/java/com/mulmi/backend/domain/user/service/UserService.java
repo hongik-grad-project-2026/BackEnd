@@ -19,6 +19,9 @@ public interface UserService {
             LoginRequestDTO dto
     );
 
+    // 로그아웃
+    void logout(String accessToken);
+
     MyInfoResponseDTO getMyInfo(Long userId);
 
     MyInfoResponseDTO updateMyInfo(Long userId, UpdateMyInfoRequestDTO dto);

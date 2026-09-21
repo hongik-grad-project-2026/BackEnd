@@ -13,6 +13,8 @@ import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
 
 import com.mulmi.backend.global.jwt.JwtUtil;
+import com.mulmi.backend.global.jwt.TokenBlacklist;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,6 +28,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final TokenBlacklist tokenBlacklist;
 
 
     //회원가입
@@ -65,6 +68,13 @@ public class UserServiceImpl implements UserService {
                 user.getStatus(),
                 accessToken
         );
+    }
+
+    // 로그아웃
+    @Override
+    public void logout(String accessToken) {
+        Claims claims = jwtUtil.extractAllClaims(accessToken);
+        tokenBlacklist.revoke(accessToken, jwtUtil.extractExpiration(claims).toInstant());
     }
 
     @Override
