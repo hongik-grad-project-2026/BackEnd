@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -41,6 +42,7 @@ public class UserController {
         );
     }
 
+    // 내 정보 수정
     @PatchMapping("/me")
     public ApiResponse<MyInfoResponseDTO> updateMyInfo(
             @AuthenticationPrincipal Long userId,
@@ -49,6 +51,14 @@ public class UserController {
                 UserSuccessCode.UPDATED,
                 userService.updateMyInfo(userId, dto)
         );
+    }
+
+    // 회원탈퇴
+    @DeleteMapping("/me")
+    public ApiResponse<Void> withdraw(
+            @AuthenticationPrincipal Long userId) {
+        userService.withdraw(userId);
+        return ApiResponse.onSuccess(UserSuccessCode.WITHDRAWN, null);
     }
 
 }

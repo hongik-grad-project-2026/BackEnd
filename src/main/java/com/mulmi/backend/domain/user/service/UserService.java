@@ -14,7 +14,7 @@ public interface UserService {
             SignupRequestDTO dto
     );
 
-    //회원가입
+    // 로그인
     LoginResponseDTO login(
             LoginRequestDTO dto
     );
@@ -25,4 +25,7 @@ public interface UserService {
     MyInfoResponseDTO getMyInfo(Long userId);
 
     MyInfoResponseDTO updateMyInfo(Long userId, UpdateMyInfoRequestDTO dto);
+
+    // 회원탈퇴
+    void withdraw(Long userId);
 }
