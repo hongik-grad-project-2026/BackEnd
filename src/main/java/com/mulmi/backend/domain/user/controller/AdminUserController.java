@@ -1,6 +1,8 @@
 package com.mulmi.backend.domain.user.controller;
 
 import com.mulmi.backend.domain.user.dto.response.AdminUserPageResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.AdminUserDetailResponseDTO;
+import com.mulmi.backend.domain.user.dto.request.AdminUpdateUserRequestDTO;
 import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.code.UserSuccessCode;
 import com.mulmi.backend.domain.user.service.UserService;
@@ -13,6 +15,10 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RestController;
 
 @Validated
@@ -37,6 +43,31 @@ public class AdminUserController {
         return ApiResponse.onSuccess(
                 UserSuccessCode.USERS_FOUND,
                 userService.getUsers(keyword, status, college, department, page, size)
+        );
+    }
+
+    // 특정 학생 정보 조회
+    @GetMapping("/{userId}")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<AdminUserDetailResponseDTO> getUser(
+            @PathVariable Long userId
+    ) {
+        return ApiResponse.onSuccess(
+                UserSuccessCode.USER_DETAIL_FOUND,
+                userService.getUser(userId)
+        );
+    }
+
+    // 학생 정보 수정
+    @PatchMapping("/{userId}")
+    @PreAuthorize("hasRole('ASSISTANT')")
+    public ApiResponse<AdminUserDetailResponseDTO> updateUser(
+            @PathVariable Long userId,
+            @RequestBody @Valid AdminUpdateUserRequestDTO dto
+    ) {
+        return ApiResponse.onSuccess(
+                UserSuccessCode.USER_UPDATED_BY_ADMIN,
+                userService.updateUser(userId, dto)
         );
     }
 }

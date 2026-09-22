@@ -2,6 +2,8 @@ package com.mulmi.backend.domain.user.service;
 
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserPageResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.AdminUserDetailResponseDTO;
+import com.mulmi.backend.domain.user.dto.request.AdminUpdateUserRequestDTO;
 import com.mulmi.backend.domain.user.dto.request.UpdateMyInfoRequestDTO;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.enums.UserRole;
@@ -42,6 +44,101 @@ class UserServiceImplTest {
 
     @InjectMocks
     private UserServiceImpl userService;
+
+    @Test
+    void getUserReturnsStudentDetail() {
+        User user = createUser();
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        AdminUserDetailResponseDTO result = userService.getUser(1L);
+
+        assertThat(result.userId()).isEqualTo(1L);
+        assertThat(result.loginId()).isEqualTo("C123456");
+        assertThat(result.studentId()).isEqualTo("C123456");
+        assertThat(result.name()).isEqualTo("홍길동");
+        assertThat(result.status()).isEqualTo(UserStatus.ACTIVE);
+    }
+
+    @Test
+    void getUserDoesNotReturnStaffAccount() {
+        User worker = User.builder()
+                .id(2L)
+                .loginId("worker")
+                .password("encoded-password")
+                .name("근로생")
+                .email("worker@example.com")
+                .phoneNumber("01011112222")
+                .role(UserRole.WORKER)
+                .status(UserStatus.ACTIVE)
+                .build();
+        given(userRepository.findById(2L)).willReturn(Optional.of(worker));
+
+        assertThatThrownBy(() -> userService.getUser(2L))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    void updateUserChangesOnlyProvidedFields() {
+        User user = createUser();
+        AdminUpdateUserRequestDTO request = new AdminUpdateUserRequestDTO(
+                "새 이름",
+                "new@example.com",
+                null,
+                null,
+                "소프트웨어학과"
+        );
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(userRepository.existsByEmailAndIdNot("new@example.com", 1L))
+                .willReturn(false);
+
+        AdminUserDetailResponseDTO result = userService.updateUser(1L, request);
+
+        assertThat(result.name()).isEqualTo("새 이름");
+        assertThat(result.email()).isEqualTo("new@example.com");
+        assertThat(result.phoneNumber()).isEqualTo("01012345678");
+        assertThat(result.college()).isEqualTo("공과대학");
+        assertThat(result.department()).isEqualTo("소프트웨어학과");
+    }
+
+    @Test
+    void updateUserThrowsWhenEmailIsAlreadyInUse() {
+        User user = createUser();
+        AdminUpdateUserRequestDTO request = new AdminUpdateUserRequestDTO(
+                null,
+                "duplicate@example.com",
+                null,
+                null,
+                null
+        );
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(userRepository.existsByEmailAndIdNot("duplicate@example.com", 1L))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> userService.updateUser(1L, request))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.DUPLICATE_EMAIL);
+    }
+
+    @Test
+    void updateUserThrowsWhenRequestHasNoValues() {
+        User user = createUser();
+        AdminUpdateUserRequestDTO request = new AdminUpdateUserRequestDTO(
+                null,
+                " ",
+                null,
+                "",
+                null
+        );
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> userService.updateUser(1L, request))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.EMPTY_UPDATE_REQUEST);
+    }
 
     @Test
     void getUsersReturnsFilteredStudentPage() {
