@@ -43,6 +43,12 @@ public enum UserErrorCode implements BaseErrorCode {
             HttpStatus.FORBIDDEN,
             "USER403_1",
             "사용할 수 없는 계정입니다."
+    ),
+
+    EMPTY_UPDATE_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "USER400_1",
+            "수정할 정보를 입력해 주세요."
     );
 
     private final HttpStatus status;

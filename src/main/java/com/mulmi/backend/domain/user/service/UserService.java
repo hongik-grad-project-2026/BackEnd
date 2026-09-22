@@ -7,6 +7,8 @@ import com.mulmi.backend.domain.user.dto.response.LoginResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserPageResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.AdminUserDetailResponseDTO;
+import com.mulmi.backend.domain.user.dto.request.AdminUpdateUserRequestDTO;
 import com.mulmi.backend.domain.user.enums.UserStatus;
 
 public interface UserService {
@@ -37,4 +39,10 @@ public interface UserService {
             int page,
             int size
     );
+
+    // 특정 학생 정보 조회
+    AdminUserDetailResponseDTO getUser(Long userId);
+
+    // 학생 정보 수정
+    AdminUserDetailResponseDTO updateUser(Long userId, AdminUpdateUserRequestDTO dto);
 }
