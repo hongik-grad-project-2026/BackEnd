@@ -7,6 +7,8 @@ import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
 import com.mulmi.backend.domain.user.exception.code.UserSuccessCode;
 import com.mulmi.backend.domain.user.service.UserService;
 import com.mulmi.backend.global.apiPayload.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,11 +23,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/users")
+@Tag(name = "회원", description = "회원가입 및 내 정보 관리 API")
 public class UserController {
 
     private final UserService userService;
 
     //회원가입
+    @Operation(summary = "회원가입")
     @PostMapping
     public ApiResponse<SignupResponseDTO> signup(
             @RequestBody @Valid SignupRequestDTO dto){
@@ -33,6 +37,7 @@ public class UserController {
     }
 
     //내 정보 조회
+    @Operation(summary = "내 정보 조회")
     @GetMapping("/me")
     public ApiResponse<MyInfoResponseDTO> getMyInfo(
             @AuthenticationPrincipal Long userId) {
@@ -43,6 +48,7 @@ public class UserController {
     }
 
     // 내 정보 수정
+    @Operation(summary = "내 정보 수정")
     @PatchMapping("/me")
     public ApiResponse<MyInfoResponseDTO> updateMyInfo(
             @AuthenticationPrincipal Long userId,
@@ -54,6 +60,7 @@ public class UserController {
     }
 
     // 회원탈퇴
+    @Operation(summary = "회원탈퇴")
     @DeleteMapping("/me")
     public ApiResponse<Void> withdraw(
             @AuthenticationPrincipal Long userId) {
