@@ -2,6 +2,7 @@ package com.mulmi.backend.domain.user.converter;
 
 import com.mulmi.backend.domain.user.dto.request.SignupRequestDTO;
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.AdminUserSummaryResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.enums.UserRole;
@@ -54,6 +55,20 @@ public class UserConverter {
                 user.getProfileImageUrl(),
                 user.getRole(),
                 user.getStatus()
+        );
+    }
+
+    public static AdminUserSummaryResponseDTO toAdminUserSummaryResponseDTO(User user) {
+        return new AdminUserSummaryResponseDTO(
+                user.getId(),
+                user.getName(),
+                user.getStudentId(),
+                user.getEmail(),
+                user.getPhoneNumber(),
+                user.getCollege(),
+                user.getDepartment(),
+                user.getStatus(),
+                user.getCreatedAt()
         );
     }
 

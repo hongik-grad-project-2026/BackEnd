@@ -34,6 +34,11 @@ public enum UserSuccessCode implements BaseSuccessCode {
             HttpStatus.OK,
             "USER200_4",
             "회원탈퇴가 완료되었습니다."
+    ),
+    USERS_FOUND(
+            HttpStatus.OK,
+            "USER200_6",
+            "회원 목록을 조회했습니다."
     );
 
     private final HttpStatus status;

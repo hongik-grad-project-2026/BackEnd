@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.user.service;
 
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.AdminUserPageResponseDTO;
 import com.mulmi.backend.domain.user.dto.request.UpdateMyInfoRequestDTO;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.enums.UserRole;
@@ -15,12 +16,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
@@ -36,6 +42,70 @@ class UserServiceImplTest {
 
     @InjectMocks
     private UserServiceImpl userService;
+
+    @Test
+    void getUsersReturnsFilteredStudentPage() {
+        User user = createUser();
+        PageRequest pageable = PageRequest.of(
+                0,
+                20,
+                Sort.by(Sort.Direction.DESC, "id")
+        );
+        given(userRepository.findUsers(
+                UserRole.STUDENT,
+                "홍",
+                UserStatus.ACTIVE,
+                "공과대학",
+                "컴퓨터공학과",
+                pageable
+        )).willReturn(new PageImpl<>(List.of(user), pageable, 1));
+
+        AdminUserPageResponseDTO result = userService.getUsers(
+                " 홍 ",
+                UserStatus.ACTIVE,
+                " 공과대학 ",
+                " 컴퓨터공학과 ",
+                0,
+                20
+        );
+
+        assertThat(result.users()).hasSize(1);
+        assertThat(result.users().get(0).userId()).isEqualTo(1L);
+        assertThat(result.users().get(0).studentId()).isEqualTo("C123456");
+        assertThat(result.page()).isZero();
+        assertThat(result.size()).isEqualTo(20);
+        assertThat(result.totalElements()).isEqualTo(1);
+        assertThat(result.totalPages()).isEqualTo(1);
+        assertThat(result.hasNext()).isFalse();
+    }
+
+    @Test
+    void getUsersTreatsBlankFiltersAsMissing() {
+        PageRequest pageable = PageRequest.of(
+                1,
+                10,
+                Sort.by(Sort.Direction.DESC, "id")
+        );
+        given(userRepository.findUsers(
+                UserRole.STUDENT,
+                null,
+                null,
+                null,
+                null,
+                pageable
+        )).willReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        userService.getUsers(" ", null, "", "   ", 1, 10);
+
+        verify(userRepository).findUsers(
+                UserRole.STUDENT,
+                null,
+                null,
+                null,
+                null,
+                pageable
+        );
+    }
 
     @Test
     void getMyInfoReturnsCurrentUser() {
