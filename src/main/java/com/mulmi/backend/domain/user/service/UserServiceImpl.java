@@ -7,7 +7,10 @@ import com.mulmi.backend.domain.user.dto.request.UpdateMyInfoRequestDTO;
 import com.mulmi.backend.domain.user.dto.response.LoginResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.AdminUserPageResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.AdminUserSummaryResponseDTO;
 import com.mulmi.backend.domain.user.entity.User;
+import com.mulmi.backend.domain.user.enums.UserRole;
 import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.UserException;
 import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
@@ -16,6 +19,9 @@ import com.mulmi.backend.domain.user.repository.UserRepository;
 import com.mulmi.backend.global.jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -101,6 +107,36 @@ public class UserServiceImpl implements UserService {
         user.withdraw();
     }
 
+    // 회원 목록 조회
+    @Override
+    public AdminUserPageResponseDTO getUsers(
+            String keyword,
+            UserStatus status,
+            String college,
+            String department,
+            int page,
+            int size
+    ) {
+        PageRequest pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "id")
+        );
+        Page<User> users = userRepository.findUsers(
+                UserRole.STUDENT,
+                normalize(keyword),
+                status,
+                normalize(college),
+                normalize(department),
+                pageable
+        );
+        Page<AdminUserSummaryResponseDTO> responsePage = users.map(
+                UserConverter::toAdminUserSummaryResponseDTO
+        );
+
+        return AdminUserPageResponseDTO.from(responsePage);
+    }
+
     private User findActiveUser(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
@@ -109,6 +145,13 @@ public class UserServiceImpl implements UserService {
             throw new UserException(UserErrorCode.INACTIVE_USER);
         }
         return user;
+    }
+
+    private String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     //중복 검사 메서드
