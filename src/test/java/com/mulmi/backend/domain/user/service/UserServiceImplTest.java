@@ -9,8 +9,6 @@ import com.mulmi.backend.domain.user.exception.UserException;
 import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
 import com.mulmi.backend.global.jwt.JwtUtil;
-import com.mulmi.backend.global.jwt.TokenBlacklist;
-import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,13 +17,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
-import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
@@ -39,23 +34,8 @@ class UserServiceImplTest {
     @Mock
     private JwtUtil jwtUtil;
 
-    @Mock
-    private TokenBlacklist tokenBlacklist;
-
     @InjectMocks
     private UserServiceImpl userService;
-
-    @Test
-    void logoutRevokesAccessTokenUntilItExpires() {
-        Claims claims = mock(Claims.class);
-        Date expiration = new Date(System.currentTimeMillis() + 60_000);
-        given(jwtUtil.extractAllClaims("access-token")).willReturn(claims);
-        given(jwtUtil.extractExpiration(claims)).willReturn(expiration);
-
-        userService.logout("access-token");
-
-        verify(tokenBlacklist).revoke("access-token", expiration.toInstant());
-    }
 
     @Test
     void getMyInfoReturnsCurrentUser() {

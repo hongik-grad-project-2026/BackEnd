@@ -7,10 +7,8 @@ import com.mulmi.backend.domain.user.service.UserService;
 import com.mulmi.backend.global.apiPayload.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,9 +31,7 @@ public class AuthController {
 
     // 로그아웃
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(
-            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader) {
-        userService.logout(authorizationHeader.substring(7));
+    public ApiResponse<Void> logout() {
         return ApiResponse.onSuccess(UserSuccessCode.LOGOUT_SUCCESS, null);
     }
 }

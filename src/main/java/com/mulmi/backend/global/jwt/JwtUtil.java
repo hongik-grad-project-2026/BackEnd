@@ -62,8 +62,4 @@ public class JwtUtil {
         return claims.get("role", String.class);
     }
 
-    public Date extractExpiration(Claims claims) {
-        return claims.getExpiration();
-    }
-
 }
