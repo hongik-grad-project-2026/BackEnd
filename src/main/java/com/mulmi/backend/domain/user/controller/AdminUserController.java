@@ -7,6 +7,8 @@ import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.code.UserSuccessCode;
 import com.mulmi.backend.domain.user.service.UserService;
 import com.mulmi.backend.global.apiPayload.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
@@ -25,11 +27,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/users")
+@Tag(name = "회원 관리", description = "조교 및 근로생용 회원 관리 API")
 public class AdminUserController {
 
     private final UserService userService;
 
     // 회원 목록 조회
+    @Operation(summary = "회원 목록 조회")
     @GetMapping
     @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
     public ApiResponse<AdminUserPageResponseDTO> getUsers(
@@ -47,6 +51,7 @@ public class AdminUserController {
     }
 
     // 특정 학생 정보 조회
+    @Operation(summary = "특정 학생 정보 조회")
     @GetMapping("/{userId}")
     @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
     public ApiResponse<AdminUserDetailResponseDTO> getUser(
@@ -59,6 +64,7 @@ public class AdminUserController {
     }
 
     // 학생 정보 수정
+    @Operation(summary = "학생 정보 수정")
     @PatchMapping("/{userId}")
     @PreAuthorize("hasRole('ASSISTANT')")
     public ApiResponse<AdminUserDetailResponseDTO> updateUser(
