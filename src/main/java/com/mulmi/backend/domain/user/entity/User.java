@@ -62,4 +62,33 @@ public class User extends BaseEntity {
         this.email = email;
         this.phoneNumber = phoneNumber;
     }
+
+    public void updateByAdmin(
+            String name,
+            String email,
+            String phoneNumber,
+            String college,
+            String department
+    ) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (email != null) {
+            this.email = email;
+        }
+        if (phoneNumber != null) {
+            this.phoneNumber = phoneNumber;
+        }
+        if (college != null) {
+            this.college = college;
+        }
+        if (department != null) {
+            this.department = department;
+        }
+    }
+
+    public void withdraw() {
+        this.status = UserStatus.WITHDRAWN;
+        markDeleted();
+    }
 }

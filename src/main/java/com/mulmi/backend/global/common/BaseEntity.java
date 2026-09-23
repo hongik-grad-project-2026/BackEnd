@@ -30,11 +30,11 @@ public abstract class BaseEntity {
     @JsonFormat(timezone = "Asia/Seoul")
     private LocalDateTime deletedAt;
 
-    public void softDelete() {
+    protected void markDeleted() {
         this.deletedAt = LocalDateTime.now();
     }
 
-    public void restore() {
+    protected void markRestored() {
         this.deletedAt = null;
     }
 }

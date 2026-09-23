@@ -37,6 +37,18 @@ public enum UserErrorCode implements BaseErrorCode {
             HttpStatus.UNAUTHORIZED,
             "USER401_1",
             "아이디 또는 비밀번호가 일치하지 않습니다."
+    ),
+
+    INACTIVE_USER(
+            HttpStatus.FORBIDDEN,
+            "USER403_1",
+            "사용할 수 없는 계정입니다."
+    ),
+
+    EMPTY_UPDATE_REQUEST(
+            HttpStatus.BAD_REQUEST,
+            "USER400_1",
+            "수정할 정보를 입력해 주세요."
     );
 
     private final HttpStatus status;

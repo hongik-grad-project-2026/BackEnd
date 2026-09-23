@@ -23,4 +23,8 @@ public class Category extends BaseEntity {
         this.name = name;
     }
 
+    public void restore() {
+        markRestored();
+    }
+
 }
