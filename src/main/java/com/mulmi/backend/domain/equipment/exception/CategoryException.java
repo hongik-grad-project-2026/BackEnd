@@ -1,8 +1,10 @@
-package com.mulmi.backend.domain.equipment.exception
-;
+package com.mulmi.backend.domain.equipment.exception;
 
-public class CategoryException extends RuntimeException {
-    public CategoryException(String message) {
-        super(message);
+import com.mulmi.backend.global.apiPayload.code.BaseErrorCode;
+import com.mulmi.backend.global.apiPayload.exception.GeneralException;
+
+public class CategoryException extends GeneralException {
+    public CategoryException(BaseErrorCode code) {
+        super(code);
     }
 }
