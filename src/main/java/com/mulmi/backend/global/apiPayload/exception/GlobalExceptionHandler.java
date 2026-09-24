@@ -7,6 +7,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -87,6 +88,26 @@ public class GlobalExceptionHandler {
                         GeneralErrorCode.BAD_REQUEST,
                         errorMessage
                 ));
+    }
+
+    /**
+     * @PreAuthorize 권한 부족 처리
+     * Controller 호출 중에 발생하므로 시큐리티 필터가 아닌 여기서 잡힌다.
+     * 이 핸들러가 없으면 아래 Exception 핸들러에 걸려 500으로 나간다.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Object>> handleAccessDenied(
+            AccessDeniedException e,
+            HttpServletRequest request
+    ) {
+        log.warn("[AccessDenied] Url: {}, Message: {}",
+                request.getRequestURI(),
+                e.getMessage()
+        );
+
+        return ResponseEntity
+                .status(GeneralErrorCode.FORBIDDEN.getStatus())
+                .body(ApiResponse.onFailure(GeneralErrorCode.FORBIDDEN, null));
     }
 
     /**
