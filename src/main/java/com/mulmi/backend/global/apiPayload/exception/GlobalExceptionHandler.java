@@ -6,19 +6,24 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     /**
      * 비즈니스 로직 예외 처리
@@ -36,15 +41,45 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * @Valid 유효성 검사 실패 처리 RequestBody
+     * 스프링 MVC 표준 예외 처리 (405, 415, 타입 변환 실패, 깨진 JSON, 404 등)
+     * 부모 클래스가 예외별로 상태 코드를 정한 뒤 이 메서드로 모은다.
+     * 여기서 응답 본문만 ApiResponse 형식으로 바꾼다.
      */
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponse<Object>> handleMethodArgumentNotValid(
-            MethodArgumentNotValidException e,
-            HttpServletRequest request
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception e,
+            Object body,
+            HttpHeaders headers,
+            HttpStatusCode statusCode,
+            WebRequest request
     ) {
-        log.warn("[MethodArgumentNotValid] Url: {}, Message: {}",
-                request.getRequestURI(),
+        log.warn("[{}] {}, Message: {}",
+                e.getClass().getSimpleName(),
+                request.getDescription(false),
+                e.getMessage()
+        );
+
+        GeneralErrorCode code = toErrorCode(statusCode);
+
+        return ResponseEntity
+                .status(statusCode)
+                .headers(headers)
+                .body(ApiResponse.onFailure(code, null));
+    }
+
+    /**
+     * @Valid 유효성 검사 실패 처리 RequestBody
+     * 부모 클래스가 이미 이 예외를 처리하므로 @ExceptionHandler가 아닌 오버라이드로 둔다.
+     */
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException e,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request
+    ) {
+        log.warn("[MethodArgumentNotValid] {}, Message: {}",
+                request.getDescription(false),
                 e.getMessage()
         );
 
@@ -124,11 +159,19 @@ public class GlobalExceptionHandler {
                 e
         );
 
+        // 내부 정보(클래스명, SQL 등)가 새지 않도록 메시지는 로그에만 남긴다.
         return ResponseEntity
                 .status(GeneralErrorCode.INTERNAL_SERVER_ERROR.getStatus())
-                .body(ApiResponse.onFailure(
-                        GeneralErrorCode.INTERNAL_SERVER_ERROR,
-                        e.getMessage()
-                ));
+                .body(ApiResponse.onFailure(GeneralErrorCode.INTERNAL_SERVER_ERROR, null));
+    }
+
+    // 상태 코드에 맞는 GeneralErrorCode를 찾는다. 없으면 4xx는 BAD_REQUEST, 그 외는 INTERNAL_SERVER_ERROR.
+    private GeneralErrorCode toErrorCode(HttpStatusCode statusCode) {
+        return Arrays.stream(GeneralErrorCode.values())
+                .filter(code -> code.getStatus().value() == statusCode.value())
+                .findFirst()
+                .orElse(statusCode.is4xxClientError()
+                        ? GeneralErrorCode.BAD_REQUEST
+                        : GeneralErrorCode.INTERNAL_SERVER_ERROR);
     }
 }
