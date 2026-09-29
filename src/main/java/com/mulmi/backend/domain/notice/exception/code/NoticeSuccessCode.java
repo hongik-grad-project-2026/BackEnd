@@ -22,6 +22,11 @@ public enum NoticeSuccessCode implements BaseSuccessCode {
             HttpStatus.CREATED,
             "NOTICE201_1",
             "공지사항을 작성했습니다."
+    ),
+    NOTICE_UPDATED(
+            HttpStatus.OK,
+            "NOTICE200_3",
+            "공지사항을 수정했습니다."
     );
 
     private final HttpStatus status;
