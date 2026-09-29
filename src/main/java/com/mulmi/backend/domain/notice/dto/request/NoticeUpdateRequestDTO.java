@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.notice.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 public record NoticeUpdateRequestDTO(
@@ -11,6 +12,7 @@ public record NoticeUpdateRequestDTO(
         @NotBlank(message = "공지사항 내용은 필수입니다.")
         String content,
 
-        boolean important
+        @NotNull(message = "중요 공지 여부는 필수입니다.")
+        Boolean important
 ) {
 }
