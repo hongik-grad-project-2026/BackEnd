@@ -34,3 +34,7 @@ logging:
 jwt:
   token:
     secret-key: ${JWT_TOKEN_SECRETKEY}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}

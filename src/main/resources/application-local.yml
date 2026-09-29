@@ -22,3 +22,7 @@ spring:
 jwt:
   token:
     secret-key: ${JWT_TOKEN_SECRETKEY:ZGh3YWlkc2F2ZXdhZXZ3b2EgMTM5ZXUgMDMxdWMyIHEyMiBAIDAgKTJFVio=}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
