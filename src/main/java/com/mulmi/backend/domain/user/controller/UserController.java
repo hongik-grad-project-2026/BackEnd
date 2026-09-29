@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -50,6 +51,7 @@ public class UserController {
     // 내 정보 수정
     @Operation(summary = "내 정보 수정")
     @PatchMapping("/me")
+    @PreAuthorize("hasRole('STUDENT')")
     public ApiResponse<MyInfoResponseDTO> updateMyInfo(
             @AuthenticationPrincipal Long userId,
             @RequestBody @Valid UpdateMyInfoRequestDTO dto) {
@@ -62,6 +64,7 @@ public class UserController {
     // 회원탈퇴
     @Operation(summary = "회원탈퇴")
     @DeleteMapping("/me")
+    @PreAuthorize("hasAnyRole('STUDENT', 'WORKER')")
     public ApiResponse<Void> withdraw(
             @AuthenticationPrincipal Long userId) {
         userService.withdraw(userId);
