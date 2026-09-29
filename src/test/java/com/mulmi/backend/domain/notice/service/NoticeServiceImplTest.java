@@ -215,6 +215,34 @@ class NoticeServiceImplTest {
                 .isEqualTo(NoticeErrorCode.NOTICE_NOT_FOUND);
     }
 
+    @Test
+    void deleteNoticeSoftDeletesExistingNotice() {
+        Notice notice = Notice.builder()
+                .id(1L)
+                .title("삭제할 공지")
+                .content("공지 내용")
+                .important(false)
+                .author(createAuthor())
+                .build();
+        given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(notice));
+
+        noticeService.deleteNotice(1L);
+
+        assertThat(notice.getDeletedAt()).isNotNull();
+    }
+
+    @Test
+    void deleteNoticeThrowsWhenNoticeDoesNotExist() {
+        given(noticeRepository.findByIdAndDeletedAtIsNull(999L))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> noticeService.deleteNotice(999L))
+                .isInstanceOf(NoticeException.class)
+                .extracting("code")
+                .isEqualTo(NoticeErrorCode.NOTICE_NOT_FOUND);
+    }
+
     private User createAuthor() {
         return User.builder()
                 .id(2L)

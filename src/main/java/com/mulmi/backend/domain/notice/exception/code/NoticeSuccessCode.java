@@ -27,6 +27,11 @@ public enum NoticeSuccessCode implements BaseSuccessCode {
             HttpStatus.OK,
             "NOTICE200_3",
             "공지사항을 수정했습니다."
+    ),
+    NOTICE_DELETED(
+            HttpStatus.OK,
+            "NOTICE200_4",
+            "공지사항을 삭제했습니다."
     );
 
     private final HttpStatus status;

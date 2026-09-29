@@ -47,4 +47,8 @@ public class Notice extends BaseEntity {
         this.content = content;
         this.important = important;
     }
+
+    public void delete() {
+        markDeleted();
+    }
 }
