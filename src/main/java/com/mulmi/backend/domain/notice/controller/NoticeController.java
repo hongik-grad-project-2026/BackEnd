@@ -1,5 +1,6 @@
 package com.mulmi.backend.domain.notice.controller;
 
+import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.exception.code.NoticeSuccessCode;
@@ -7,12 +8,17 @@ import com.mulmi.backend.domain.notice.service.NoticeService;
 import com.mulmi.backend.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,6 +55,20 @@ public class NoticeController {
         return ApiResponse.onSuccess(
                 NoticeSuccessCode.NOTICE_FOUND,
                 noticeService.getNotice(noticeId)
+        );
+    }
+
+    // 공지사항 작성
+    @Operation(summary = "공지사항 작성")
+    @PostMapping
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<NoticeDetailResponseDTO> createNotice(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody @Valid NoticeCreateRequestDTO dto
+    ) {
+        return ApiResponse.onSuccess(
+                NoticeSuccessCode.NOTICE_CREATED,
+                noticeService.createNotice(userId, dto)
         );
     }
 }

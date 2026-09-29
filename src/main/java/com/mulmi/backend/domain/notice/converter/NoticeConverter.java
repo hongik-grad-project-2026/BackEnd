@@ -1,12 +1,23 @@
 package com.mulmi.backend.domain.notice.converter;
 
+import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeSummaryResponseDTO;
 import com.mulmi.backend.domain.notice.entity.Notice;
+import com.mulmi.backend.domain.user.entity.User;
 
 public class NoticeConverter {
 
     private NoticeConverter() {
+    }
+
+    public static Notice toNotice(NoticeCreateRequestDTO dto, User author) {
+        return Notice.builder()
+                .title(dto.title().trim())
+                .content(dto.content().trim())
+                .important(dto.important())
+                .author(author)
+                .build();
     }
 
     public static NoticeSummaryResponseDTO toNoticeSummaryResponseDTO(Notice notice) {

@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.notice.service;
 
 import com.mulmi.backend.domain.notice.converter.NoticeConverter;
+import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeSummaryResponseDTO;
@@ -8,6 +9,11 @@ import com.mulmi.backend.domain.notice.entity.Notice;
 import com.mulmi.backend.domain.notice.exception.NoticeException;
 import com.mulmi.backend.domain.notice.exception.code.NoticeErrorCode;
 import com.mulmi.backend.domain.notice.repository.NoticeRepository;
+import com.mulmi.backend.domain.user.entity.User;
+import com.mulmi.backend.domain.user.enums.UserStatus;
+import com.mulmi.backend.domain.user.exception.UserException;
+import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
+import com.mulmi.backend.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -21,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NoticeServiceImpl implements NoticeService {
 
     private final NoticeRepository noticeRepository;
+    private final UserRepository userRepository;
 
     @Override
     public NoticePageResponseDTO getNotices(Boolean important, int page, int size) {
@@ -44,5 +51,24 @@ public class NoticeServiceImpl implements NoticeService {
                 .orElseThrow(() -> new NoticeException(NoticeErrorCode.NOTICE_NOT_FOUND));
 
         return NoticeConverter.toNoticeDetailResponseDTO(notice);
+    }
+
+    @Override
+    @Transactional
+    public NoticeDetailResponseDTO createNotice(
+            Long authorId,
+            NoticeCreateRequestDTO dto
+    ) {
+        User author = userRepository.findById(authorId)
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+
+        if (author.getStatus() != UserStatus.ACTIVE) {
+            throw new UserException(UserErrorCode.INACTIVE_USER);
+        }
+
+        Notice notice = NoticeConverter.toNotice(dto, author);
+        Notice savedNotice = noticeRepository.save(notice);
+
+        return NoticeConverter.toNoticeDetailResponseDTO(savedNotice);
     }
 }
