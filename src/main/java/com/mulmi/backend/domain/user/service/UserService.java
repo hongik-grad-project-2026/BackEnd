@@ -8,8 +8,11 @@ import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserPageResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserDetailResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.StaffSummaryResponseDTO;
 import com.mulmi.backend.domain.user.dto.request.AdminUpdateUserRequestDTO;
 import com.mulmi.backend.domain.user.enums.UserStatus;
+
+import java.util.List;
 
 public interface UserService {
 
@@ -45,4 +48,7 @@ public interface UserService {
 
     // 학생 정보 수정
     AdminUserDetailResponseDTO updateUser(Long userId, AdminUpdateUserRequestDTO dto);
+
+    // 근로생 목록 조회
+    List<StaffSummaryResponseDTO> getStaffMembers();
 }

@@ -49,6 +49,11 @@ public enum UserSuccessCode implements BaseSuccessCode {
             HttpStatus.OK,
             "USER200_8",
             "학생 정보를 수정했습니다."
+    ),
+    STAFF_FOUND(
+            HttpStatus.OK,
+            "USER200_9",
+            "근로생 목록을 조회했습니다."
     );
 
     private final HttpStatus status;

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
@@ -22,6 +23,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByStudentId(String studentId);
 
     Optional<User> findByLoginId(String loginId);
+
+    List<User> findAllByRoleAndStatusOrderByNameAsc(UserRole role, UserStatus status);
 
     @Query("""
             SELECT u
