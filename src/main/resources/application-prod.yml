@@ -1,3 +1,4 @@
+#EC2의 Docker에서 실행할 때의 스프링부트 설정
 spring:
   config:
     activate:

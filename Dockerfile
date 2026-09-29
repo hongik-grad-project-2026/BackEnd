@@ -1,3 +1,5 @@
+#Spring Boot를 Docker 이미지로 포장하는 설명서
+
 # syntax=docker/dockerfile:1
 FROM eclipse-temurin:17-jdk-jammy AS build
 WORKDIR /app

@@ -1,3 +1,11 @@
+# EC2에서 Docker 이미지를 어떻게 실행할지 정하는 파일
+
+#  ECR의 백엔드 이미지 선택
+#  prod 환경 활성화
+#  EC2의 비밀 환경변수 전달
+#  EC2의 80번 포트를 Spring Boot 8080번 포트에 연결
+#  서버가 꺼지면 컨테이너 재시작
+
 services:
   backend:
     image: ${IMAGE_URI:?IMAGE_URI must be set}

@@ -1,3 +1,4 @@
+# 로컬에서의 스프링부트 설정
 spring:
   config:
     activate:

@@ -1,3 +1,4 @@
+# 스프링부트 공통 설정!
 spring:
   application:
     name: mulmi-backend
