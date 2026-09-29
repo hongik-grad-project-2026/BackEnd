@@ -1,8 +1,11 @@
 package com.mulmi.backend.domain.notice.service;
 
+import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.entity.Notice;
 import com.mulmi.backend.domain.notice.repository.NoticeRepository;
+import com.mulmi.backend.domain.notice.exception.NoticeException;
+import com.mulmi.backend.domain.notice.exception.code.NoticeErrorCode;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.enums.UserRole;
 import com.mulmi.backend.domain.user.enums.UserStatus;
@@ -16,8 +19,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -77,6 +82,40 @@ class NoticeServiceImplTest {
         assertThat(result.notices()).isEmpty();
         assertThat(result.size()).isEqualTo(3);
         verify(noticeRepository).findNotices(true, pageable);
+    }
+
+    @Test
+    void getNoticeReturnsNoticeDetail() {
+        User author = createAuthor();
+        Notice notice = Notice.builder()
+                .id(1L)
+                .title("대여실 운영 안내")
+                .content("운영 시간을 안내합니다.")
+                .important(true)
+                .author(author)
+                .build();
+        given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(notice));
+
+        NoticeDetailResponseDTO result = noticeService.getNotice(1L);
+
+        assertThat(result.noticeId()).isEqualTo(1L);
+        assertThat(result.title()).isEqualTo("대여실 운영 안내");
+        assertThat(result.content()).isEqualTo("운영 시간을 안내합니다.");
+        assertThat(result.important()).isTrue();
+        assertThat(result.authorId()).isEqualTo(2L);
+        assertThat(result.authorName()).isEqualTo("조교");
+    }
+
+    @Test
+    void getNoticeThrowsWhenNoticeDoesNotExist() {
+        given(noticeRepository.findByIdAndDeletedAtIsNull(999L))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> noticeService.getNotice(999L))
+                .isInstanceOf(NoticeException.class)
+                .extracting("code")
+                .isEqualTo(NoticeErrorCode.NOTICE_NOT_FOUND);
     }
 
     private User createAuthor() {

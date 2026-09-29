@@ -1,9 +1,12 @@
 package com.mulmi.backend.domain.notice.service;
 
 import com.mulmi.backend.domain.notice.converter.NoticeConverter;
+import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeSummaryResponseDTO;
 import com.mulmi.backend.domain.notice.entity.Notice;
+import com.mulmi.backend.domain.notice.exception.NoticeException;
+import com.mulmi.backend.domain.notice.exception.code.NoticeErrorCode;
 import com.mulmi.backend.domain.notice.repository.NoticeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,5 +36,13 @@ public class NoticeServiceImpl implements NoticeService {
         );
 
         return NoticePageResponseDTO.from(responsePage);
+    }
+
+    @Override
+    public NoticeDetailResponseDTO getNotice(Long noticeId) {
+        Notice notice = noticeRepository.findByIdAndDeletedAtIsNull(noticeId)
+                .orElseThrow(() -> new NoticeException(NoticeErrorCode.NOTICE_NOT_FOUND));
+
+        return NoticeConverter.toNoticeDetailResponseDTO(notice);
     }
 }
