@@ -86,4 +86,13 @@ public class NoticeServiceImpl implements NoticeService {
 
         return NoticeConverter.toNoticeDetailResponseDTO(notice);
     }
+
+    @Override
+    @Transactional
+    public void deleteNotice(Long noticeId) {
+        Notice notice = noticeRepository.findByIdAndDeletedAtIsNull(noticeId)
+                .orElseThrow(() -> new NoticeException(NoticeErrorCode.NOTICE_NOT_FOUND));
+
+        notice.delete();
+    }
 }
