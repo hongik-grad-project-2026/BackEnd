@@ -18,3 +18,7 @@ spring:
         format_sql: true
         jdbc:
           time_zone: Asia/Seoul
+
+jwt:
+  token:
+    secret-key: ${JWT_TOKEN_SECRETKEY:ZGh3YWlkc2F2ZXdhZXZ3b2EgMTM5ZXUgMDMxdWMyIHEyMiBAIDAgKTJFVio=}
