@@ -1,5 +1,6 @@
 package com.mulmi.backend.domain.notice.converter;
 
+import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeSummaryResponseDTO;
 import com.mulmi.backend.domain.notice.entity.Notice;
 
@@ -16,6 +17,19 @@ public class NoticeConverter {
                 notice.getAuthor().getId(),
                 notice.getAuthor().getName(),
                 notice.getCreatedAt()
+        );
+    }
+
+    public static NoticeDetailResponseDTO toNoticeDetailResponseDTO(Notice notice) {
+        return new NoticeDetailResponseDTO(
+                notice.getId(),
+                notice.getTitle(),
+                notice.getContent(),
+                notice.isImportant(),
+                notice.getAuthor().getId(),
+                notice.getAuthor().getName(),
+                notice.getCreatedAt(),
+                notice.getUpdatedAt()
         );
     }
 }

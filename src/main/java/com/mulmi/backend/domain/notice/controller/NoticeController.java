@@ -1,5 +1,6 @@
 package com.mulmi.backend.domain.notice.controller;
 
+import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.exception.code.NoticeSuccessCode;
 import com.mulmi.backend.domain.notice.service.NoticeService;
@@ -11,6 +12,7 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +37,18 @@ public class NoticeController {
         return ApiResponse.onSuccess(
                 NoticeSuccessCode.NOTICES_FOUND,
                 noticeService.getNotices(important, page, size)
+        );
+    }
+
+    // 공지사항 상세 조회
+    @Operation(summary = "공지사항 상세 조회")
+    @GetMapping("/{noticeId}")
+    public ApiResponse<NoticeDetailResponseDTO> getNotice(
+            @PathVariable Long noticeId
+    ) {
+        return ApiResponse.onSuccess(
+                NoticeSuccessCode.NOTICE_FOUND,
+                noticeService.getNotice(noticeId)
         );
     }
 }
