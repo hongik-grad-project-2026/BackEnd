@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.notice.service;
 
 import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
+import com.mulmi.backend.domain.notice.dto.request.NoticeUpdateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.entity.Notice;
@@ -170,6 +171,48 @@ class NoticeServiceImplTest {
                 .isInstanceOf(UserException.class)
                 .extracting("code")
                 .isEqualTo(UserErrorCode.INACTIVE_USER);
+    }
+
+    @Test
+    void updateNoticeUpdatesExistingNotice() {
+        User author = createAuthor();
+        Notice notice = Notice.builder()
+                .id(1L)
+                .title("기존 제목")
+                .content("기존 내용")
+                .important(false)
+                .author(author)
+                .build();
+        NoticeUpdateRequestDTO request = new NoticeUpdateRequestDTO(
+                " 수정 제목 ",
+                " 수정 내용 ",
+                true
+        );
+        given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(notice));
+
+        NoticeDetailResponseDTO result = noticeService.updateNotice(1L, request);
+
+        assertThat(result.title()).isEqualTo("수정 제목");
+        assertThat(result.content()).isEqualTo("수정 내용");
+        assertThat(result.important()).isTrue();
+        assertThat(result.authorId()).isEqualTo(2L);
+    }
+
+    @Test
+    void updateNoticeThrowsWhenNoticeDoesNotExist() {
+        NoticeUpdateRequestDTO request = new NoticeUpdateRequestDTO(
+                "수정 제목",
+                "수정 내용",
+                false
+        );
+        given(noticeRepository.findByIdAndDeletedAtIsNull(999L))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> noticeService.updateNotice(999L, request))
+                .isInstanceOf(NoticeException.class)
+                .extracting("code")
+                .isEqualTo(NoticeErrorCode.NOTICE_NOT_FOUND);
     }
 
     private User createAuthor() {

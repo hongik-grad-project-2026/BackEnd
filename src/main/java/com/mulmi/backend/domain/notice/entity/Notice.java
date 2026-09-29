@@ -41,4 +41,10 @@ public class Notice extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
+
+    public void update(String title, String content, boolean important) {
+        this.title = title;
+        this.content = content;
+        this.important = important;
+    }
 }

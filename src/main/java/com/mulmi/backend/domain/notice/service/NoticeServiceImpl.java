@@ -2,6 +2,7 @@ package com.mulmi.backend.domain.notice.service;
 
 import com.mulmi.backend.domain.notice.converter.NoticeConverter;
 import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
+import com.mulmi.backend.domain.notice.dto.request.NoticeUpdateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeSummaryResponseDTO;
@@ -70,5 +71,19 @@ public class NoticeServiceImpl implements NoticeService {
         Notice savedNotice = noticeRepository.save(notice);
 
         return NoticeConverter.toNoticeDetailResponseDTO(savedNotice);
+    }
+
+    @Override
+    @Transactional
+    public NoticeDetailResponseDTO updateNotice(
+            Long noticeId,
+            NoticeUpdateRequestDTO dto
+    ) {
+        Notice notice = noticeRepository.findByIdAndDeletedAtIsNull(noticeId)
+                .orElseThrow(() -> new NoticeException(NoticeErrorCode.NOTICE_NOT_FOUND));
+
+        notice.update(dto.title().trim(), dto.content().trim(), dto.important());
+
+        return NoticeConverter.toNoticeDetailResponseDTO(notice);
     }
 }
