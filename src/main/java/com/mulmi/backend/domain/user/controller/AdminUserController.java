@@ -3,6 +3,7 @@ package com.mulmi.backend.domain.user.controller;
 import com.mulmi.backend.domain.user.dto.response.AdminUserPageResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserDetailResponseDTO;
 import com.mulmi.backend.domain.user.dto.request.AdminUpdateUserRequestDTO;
+import com.mulmi.backend.domain.user.dto.response.StaffSummaryResponseDTO;
 import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.code.UserSuccessCode;
 import com.mulmi.backend.domain.user.service.UserService;
@@ -13,6 +14,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +24,8 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @Validated
 @RestController
@@ -47,6 +51,19 @@ public class AdminUserController {
         return ApiResponse.onSuccess(
                 UserSuccessCode.USERS_FOUND,
                 userService.getUsers(keyword, status, college, department, page, size)
+        );
+    }
+
+    // 근로생 목록 조회
+    @Operation(summary = "근로생 목록 조회")
+    @GetMapping("/staff")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<List<StaffSummaryResponseDTO>> getStaffMembers(
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ApiResponse.onSuccess(
+                UserSuccessCode.STAFF_FOUND,
+                userService.getStaffMembers(userId)
         );
     }
 

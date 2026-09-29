@@ -10,6 +10,7 @@ import com.mulmi.backend.domain.user.dto.response.SignupResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserPageResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserSummaryResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserDetailResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.StaffSummaryResponseDTO;
 import com.mulmi.backend.domain.user.dto.request.AdminUpdateUserRequestDTO;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.enums.UserRole;
@@ -26,6 +27,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -174,6 +177,19 @@ public class UserServiceImpl implements UserService {
         user.updateByAdmin(name, email, phoneNumber, college, department);
         userRepository.flush();
         return UserConverter.toAdminUserDetailResponseDTO(user);
+    }
+
+    // 근로생 목록 조회
+    @Override
+    public List<StaffSummaryResponseDTO> getStaffMembers(Long requesterId) {
+        findActiveUser(requesterId);
+
+        return userRepository.findAllByRoleAndStatusOrderByNameAsc(
+                        UserRole.WORKER,
+                        UserStatus.ACTIVE
+                ).stream()
+                .map(UserConverter::toStaffSummaryResponseDTO)
+                .toList();
     }
 
     private User findActiveUser(Long userId) {

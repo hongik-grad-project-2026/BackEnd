@@ -3,6 +3,7 @@ package com.mulmi.backend.domain.user.service;
 import com.mulmi.backend.domain.user.dto.response.MyInfoResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserPageResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.AdminUserDetailResponseDTO;
+import com.mulmi.backend.domain.user.dto.response.StaffSummaryResponseDTO;
 import com.mulmi.backend.domain.user.dto.request.AdminUpdateUserRequestDTO;
 import com.mulmi.backend.domain.user.dto.request.UpdateMyInfoRequestDTO;
 import com.mulmi.backend.domain.user.entity.User;
@@ -329,6 +330,38 @@ class UserServiceImplTest {
                 .isEqualTo(UserErrorCode.INACTIVE_USER);
     }
 
+    @Test
+    void getStaffMembersReturnsOnlyActiveWorkersInRepositoryOrder() {
+        User requester = createWorker(4L, "requester", "조회 근로생");
+        User firstWorker = createWorker(2L, "worker01", "김근로");
+        User secondWorker = createWorker(3L, "worker02", "이근로");
+        given(userRepository.findById(4L)).willReturn(Optional.of(requester));
+        given(userRepository.findAllByRoleAndStatusOrderByNameAsc(
+                UserRole.WORKER,
+                UserStatus.ACTIVE
+        )).willReturn(List.of(firstWorker, secondWorker));
+
+        List<StaffSummaryResponseDTO> result = userService.getStaffMembers(4L);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).userId()).isEqualTo(2L);
+        assertThat(result.get(0).loginId()).isEqualTo("worker01");
+        assertThat(result.get(0).name()).isEqualTo("김근로");
+        assertThat(result.get(1).userId()).isEqualTo(3L);
+    }
+
+    @Test
+    void getStaffMembersRejectsWithdrawnRequester() {
+        User requester = createWorker(4L, "requester", "조회 근로생");
+        requester.withdraw();
+        given(userRepository.findById(4L)).willReturn(Optional.of(requester));
+
+        assertThatThrownBy(() -> userService.getStaffMembers(4L))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.INACTIVE_USER);
+    }
+
     private User createUser() {
         return User.builder()
                 .id(1L)
@@ -341,6 +374,19 @@ class UserServiceImplTest {
                 .college("공과대학")
                 .department("컴퓨터공학과")
                 .role(UserRole.STUDENT)
+                .status(UserStatus.ACTIVE)
+                .build();
+    }
+
+    private User createWorker(Long id, String loginId, String name) {
+        return User.builder()
+                .id(id)
+                .loginId(loginId)
+                .password("encoded-password")
+                .name(name)
+                .email(loginId + "@example.com")
+                .phoneNumber("01012345678")
+                .role(UserRole.WORKER)
                 .status(UserStatus.ACTIVE)
                 .build();
     }
