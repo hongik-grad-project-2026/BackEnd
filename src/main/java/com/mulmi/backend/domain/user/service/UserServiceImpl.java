@@ -181,7 +181,9 @@ public class UserServiceImpl implements UserService {
 
     // 근로생 목록 조회
     @Override
-    public List<StaffSummaryResponseDTO> getStaffMembers() {
+    public List<StaffSummaryResponseDTO> getStaffMembers(Long requesterId) {
+        findActiveUser(requesterId);
+
         return userRepository.findAllByRoleAndStatusOrderByNameAsc(
                         UserRole.WORKER,
                         UserStatus.ACTIVE

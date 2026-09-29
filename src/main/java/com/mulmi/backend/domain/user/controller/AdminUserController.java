@@ -14,6 +14,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,10 +58,12 @@ public class AdminUserController {
     @Operation(summary = "근로생 목록 조회")
     @GetMapping("/staff")
     @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
-    public ApiResponse<List<StaffSummaryResponseDTO>> getStaffMembers() {
+    public ApiResponse<List<StaffSummaryResponseDTO>> getStaffMembers(
+            @AuthenticationPrincipal Long userId
+    ) {
         return ApiResponse.onSuccess(
                 UserSuccessCode.STAFF_FOUND,
-                userService.getStaffMembers()
+                userService.getStaffMembers(userId)
         );
     }
 

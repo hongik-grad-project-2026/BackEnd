@@ -50,5 +50,5 @@ public interface UserService {
     AdminUserDetailResponseDTO updateUser(Long userId, AdminUpdateUserRequestDTO dto);
 
     // 근로생 목록 조회
-    List<StaffSummaryResponseDTO> getStaffMembers();
+    List<StaffSummaryResponseDTO> getStaffMembers(Long requesterId);
 }
