@@ -1,5 +1,6 @@
 package com.mulmi.backend.domain.notice.service;
 
+import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.entity.Notice;
@@ -9,6 +10,9 @@ import com.mulmi.backend.domain.notice.exception.code.NoticeErrorCode;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.enums.UserRole;
 import com.mulmi.backend.domain.user.enums.UserStatus;
+import com.mulmi.backend.domain.user.exception.UserException;
+import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
+import com.mulmi.backend.domain.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +36,9 @@ class NoticeServiceImplTest {
 
     @Mock
     private NoticeRepository noticeRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -116,6 +124,52 @@ class NoticeServiceImplTest {
                 .isInstanceOf(NoticeException.class)
                 .extracting("code")
                 .isEqualTo(NoticeErrorCode.NOTICE_NOT_FOUND);
+    }
+
+    @Test
+    void createNoticeSavesNoticeWithAuthenticatedAuthor() {
+        User author = createAuthor();
+        NoticeCreateRequestDTO request = new NoticeCreateRequestDTO(
+                " 대여실 운영 안내 ",
+                " 운영 시간을 안내합니다. ",
+                true
+        );
+        given(userRepository.findById(2L)).willReturn(Optional.of(author));
+        given(noticeRepository.save(any(Notice.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        NoticeDetailResponseDTO result = noticeService.createNotice(2L, request);
+
+        assertThat(result.title()).isEqualTo("대여실 운영 안내");
+        assertThat(result.content()).isEqualTo("운영 시간을 안내합니다.");
+        assertThat(result.important()).isTrue();
+        assertThat(result.authorId()).isEqualTo(2L);
+        verify(noticeRepository).save(any(Notice.class));
+    }
+
+    @Test
+    void createNoticeThrowsWhenAuthorIsInactive() {
+        User inactiveAuthor = User.builder()
+                .id(2L)
+                .loginId("assistant")
+                .password("encoded-password")
+                .name("조교")
+                .email("assistant@example.com")
+                .phoneNumber("01012345678")
+                .role(UserRole.ASSISTANT)
+                .status(UserStatus.SUSPENDED)
+                .build();
+        NoticeCreateRequestDTO request = new NoticeCreateRequestDTO(
+                "공지사항",
+                "공지사항 내용",
+                false
+        );
+        given(userRepository.findById(2L)).willReturn(Optional.of(inactiveAuthor));
+
+        assertThatThrownBy(() -> noticeService.createNotice(2L, request))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.INACTIVE_USER);
     }
 
     private User createAuthor() {
