@@ -20,7 +20,9 @@ Complete these one-time steps before merging the CI/CD pull request:
    `sudo chmod 600 /opt/mulmi/backend.env` afterward. Set
    `CORS_ALLOWED_ORIGINS` to the frontend origin. Multiple origins must be
    comma-separated. No AWS access keys are needed because EC2 has
-   `MulmiEc2Role`.
+   `MulmiEc2Role`. Keep `S3_BUCKET=mulmi-dev-files-563586109665`; the role is
+   limited to that bucket and the application uses the EC2 instance profile
+   automatically.
 
 The development Compose file temporarily uses Hibernate `ddl-auto=update`
 because this database is empty and the project has no schema migrations yet.

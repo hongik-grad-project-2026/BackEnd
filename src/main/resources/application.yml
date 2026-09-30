@@ -19,3 +19,9 @@ jwt:
   token:
     expiration:
       access: 14400000
+
+app:
+  storage:
+    s3:
+      region: ${AWS_REGION:ap-northeast-2}
+      bucket: ${S3_BUCKET:mulmi-dev-files-563586109665}
