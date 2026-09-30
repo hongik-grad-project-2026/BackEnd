@@ -1,3 +1,4 @@
+# 스프링부트 공통 설정!
 spring:
   application:
     name: mulmi-backend
@@ -16,6 +17,11 @@ server:
 
 jwt:
   token:
-    secretKey: ZGh3YWlkc2F2ZXdhZXZ3b2EgMTM5ZXUgMDMxdWMyIHEyMiBAIDAgKTJFVio=
     expiration:
       access: 14400000
+
+app:
+  storage:
+    s3:
+      region: ${AWS_REGION:ap-northeast-2}
+      bucket: ${S3_BUCKET:mulmi-dev-files-563586109665}

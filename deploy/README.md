@@ -17,8 +17,12 @@ Complete these one-time steps before merging the CI/CD pull request:
    Use the RDS endpoint from the RDS console and the password already chosen
    when creating the DB. Generate a separate JWT secret on EC2 with
    `openssl rand -hex 32`; do not paste it into GitHub or a chat. Run
-   `sudo chmod 600 /opt/mulmi/backend.env` afterward. No AWS access keys are
-   needed because EC2 has `MulmiEc2Role`.
+   `sudo chmod 600 /opt/mulmi/backend.env` afterward. Set
+   `CORS_ALLOWED_ORIGINS` to the frontend origin. Multiple origins must be
+   comma-separated. No AWS access keys are needed because EC2 has
+   `MulmiEc2Role`. Keep `S3_BUCKET=mulmi-dev-files-563586109665`; the role is
+   limited to that bucket and the application uses the EC2 instance profile
+   automatically.
 
 The development Compose file temporarily uses Hibernate `ddl-auto=update`
 because this database is empty and the project has no schema migrations yet.
