@@ -63,6 +63,10 @@ public class User extends BaseEntity {
         this.phoneNumber = phoneNumber;
     }
 
+    public void updateProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
     public void updateByAdmin(
             String name,
             String email,

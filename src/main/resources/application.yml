@@ -6,6 +6,11 @@ spring:
   profiles:
     default: local
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
 springdoc:
   swagger-ui:
     path: /mulmi-api

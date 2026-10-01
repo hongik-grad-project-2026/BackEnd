@@ -54,6 +54,11 @@ public enum UserSuccessCode implements BaseSuccessCode {
             HttpStatus.OK,
             "USER200_9",
             "근로생 목록을 조회했습니다."
+    ),
+    PROFILE_IMAGE_UPDATED(
+            HttpStatus.OK,
+            "USER200_10",
+            "프로필 사진을 업로드했습니다."
     );
 
     private final HttpStatus status;

@@ -11,6 +11,7 @@ import com.mulmi.backend.domain.user.dto.response.AdminUserDetailResponseDTO;
 import com.mulmi.backend.domain.user.dto.response.StaffSummaryResponseDTO;
 import com.mulmi.backend.domain.user.dto.request.AdminUpdateUserRequestDTO;
 import com.mulmi.backend.domain.user.enums.UserStatus;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -29,6 +30,8 @@ public interface UserService {
     MyInfoResponseDTO getMyInfo(Long userId);
 
     MyInfoResponseDTO updateMyInfo(Long userId, UpdateMyInfoRequestDTO dto);
+
+    MyInfoResponseDTO updateProfileImage(Long userId, MultipartFile image);
 
     // 회원탈퇴
     void withdraw(Long userId);
