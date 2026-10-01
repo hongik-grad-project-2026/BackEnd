@@ -12,6 +12,26 @@ public enum NoticeErrorCode implements BaseErrorCode {
             HttpStatus.NOT_FOUND,
             "NOTICE404_1",
             "공지사항을 찾을 수 없습니다."
+    ),
+    ATTACHMENT_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "NOTICE404_2",
+            "첨부파일을 찾을 수 없습니다."
+    ),
+    INVALID_ATTACHMENT(
+            HttpStatus.BAD_REQUEST,
+            "NOTICE400_1",
+            "PDF, JPG, PNG, DOCX 형식의 첨부파일만 업로드할 수 있습니다."
+    ),
+    INVALID_ATTACHMENT_NAME(
+            HttpStatus.BAD_REQUEST,
+            "NOTICE400_2",
+            "첨부파일 이름이 올바르지 않습니다."
+    ),
+    ATTACHMENT_TOO_LARGE(
+            HttpStatus.PAYLOAD_TOO_LARGE,
+            "NOTICE413_1",
+            "첨부파일은 20MB를 넘을 수 없습니다."
     );
 
     private final HttpStatus status;

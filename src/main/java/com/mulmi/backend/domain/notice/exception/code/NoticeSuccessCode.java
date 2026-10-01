@@ -32,6 +32,11 @@ public enum NoticeSuccessCode implements BaseSuccessCode {
             HttpStatus.OK,
             "NOTICE200_4",
             "공지사항을 삭제했습니다."
+    ),
+    ATTACHMENT_UPLOADED(
+            HttpStatus.CREATED,
+            "NOTICE201_2",
+            "공지사항 첨부파일을 업로드했습니다."
     );
 
     private final HttpStatus status;
