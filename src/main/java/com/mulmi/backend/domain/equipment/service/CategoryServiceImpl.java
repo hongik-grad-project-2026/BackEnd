@@ -8,11 +8,11 @@ import com.mulmi.backend.domain.equipment.entity.Category;
 import com.mulmi.backend.domain.equipment.exception.CategoryException;
 import com.mulmi.backend.domain.equipment.exception.code.CategoryErrorCode;
 import com.mulmi.backend.domain.equipment.repository.CategoryRepository;
+import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.swing.text.html.Option;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,6 +22,7 @@ import java.util.Optional;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final EquipmentModelRepository equipmentModelRepository;
 
     // 카테고리 등록
     @Override
@@ -79,5 +80,22 @@ public class CategoryServiceImpl implements CategoryService {
         // save() 없이 더티 체킹으로 UPDATE된다.
         category.updateCategoryName(name);
         return CategoryConverter.toCategoryResponseDTO(category);
+    }
+
+    // 카테고리 삭제
+    @Override
+    @Transactional
+    public void deleteCategory(Long categoryId) {
+        // 1. 삭제 대상 조회 (삭제할 대상이 있는지 확인)
+        Category category = categoryRepository.findByIdAndDeletedAtIsNull(categoryId)
+                .orElseThrow(() -> new CategoryException(CategoryErrorCode.CATEGORY_NOT_FOUND));
+
+        // 2. 삭제할 카테고리에 연결된 모델이 남아 있으면 삭제 거부
+        if (equipmentModelRepository.countByCategoryIdAndDeletedAtIsNull(categoryId) > 0) {
+            throw new CategoryException(CategoryErrorCode.CATEGORY_HAS_MODELS);
+        }
+
+        // 3. 소프트 삭제
+        category.delete();
     }
 }

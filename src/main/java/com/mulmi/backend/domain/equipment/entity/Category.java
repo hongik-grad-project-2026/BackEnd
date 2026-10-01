@@ -27,4 +27,8 @@ public class Category extends BaseEntity {
         markRestored();
     }
 
+    public void delete() {
+        markDeleted();
+    }
+
 }

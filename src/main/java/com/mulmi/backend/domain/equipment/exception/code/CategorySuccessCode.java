@@ -19,7 +19,11 @@ public enum CategorySuccessCode implements BaseSuccessCode {
     UPDATED(
             HttpStatus.OK,
             "CATEGORY200_2",
-            "카테고리가 수정되었습니다."
+            "카테고리가 수정되었습니다."),
+    DELETED(
+            HttpStatus.OK,
+            "CATEGORY200_3",
+            "카테고리가 삭제되었습니다."
     );
 
     private final HttpStatus status;

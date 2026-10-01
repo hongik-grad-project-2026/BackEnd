@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -51,6 +52,15 @@ public class AdminCategoryController {
                 CategorySuccessCode.UPDATED,
                 categoryService.updateCategory(categoryId, dto)
         );
+    }
+
+    // 카테고리 삭제
+    @Operation(summary = "카테고리 삭제")
+    @DeleteMapping("/{categoryId}")
+    @PreAuthorize("hasRole('ASSISTANT')")
+    public ApiResponse<Void> deleteCategory(@PathVariable Long categoryId) {
+        categoryService.deleteCategory(categoryId);
+        return ApiResponse.onSuccess(CategorySuccessCode.DELETED, null);
     }
 
 }
