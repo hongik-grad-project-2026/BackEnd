@@ -3,9 +3,12 @@ package com.mulmi.backend.domain.notice.service;
 import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.request.NoticeUpdateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
+import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.entity.Notice;
+import com.mulmi.backend.domain.notice.entity.NoticeAttachment;
 import com.mulmi.backend.domain.notice.repository.NoticeRepository;
+import com.mulmi.backend.domain.notice.repository.NoticeAttachmentRepository;
 import com.mulmi.backend.domain.notice.exception.NoticeException;
 import com.mulmi.backend.domain.notice.exception.code.NoticeErrorCode;
 import com.mulmi.backend.domain.user.entity.User;
@@ -14,11 +17,13 @@ import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.UserException;
 import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
+import com.mulmi.backend.global.storage.S3StorageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -39,7 +44,13 @@ class NoticeServiceImplTest {
     private NoticeRepository noticeRepository;
 
     @Mock
+    private NoticeAttachmentRepository noticeAttachmentRepository;
+
+    @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private S3StorageService s3StorageService;
 
     @InjectMocks
     private NoticeServiceImpl noticeService;
@@ -241,6 +252,60 @@ class NoticeServiceImplTest {
                 .isInstanceOf(NoticeException.class)
                 .extracting("code")
                 .isEqualTo(NoticeErrorCode.NOTICE_NOT_FOUND);
+    }
+
+    @Test
+    void uploadAttachmentStoresFileAndMetadata() {
+        Notice notice = Notice.builder()
+                .id(1L)
+                .title("첨부 공지")
+                .content("첨부파일이 있습니다.")
+                .important(false)
+                .author(createAuthor())
+                .build();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "대여안내.pdf",
+                "application/pdf",
+                "pdf-content".getBytes()
+        );
+        given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(notice));
+        given(s3StorageService.upload(file, "notices/1/attachments"))
+                .willReturn("notices/1/attachments/generated.pdf");
+        given(noticeAttachmentRepository.save(any(NoticeAttachment.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        NoticeAttachmentResponseDTO result = noticeService.uploadAttachment(1L, file);
+
+        assertThat(result.originalFileName()).isEqualTo("대여안내.pdf");
+        assertThat(result.contentType()).isEqualTo("application/pdf");
+        assertThat(result.fileSize()).isEqualTo(file.getSize());
+        verify(noticeAttachmentRepository).save(any(NoticeAttachment.class));
+    }
+
+    @Test
+    void uploadAttachmentRejectsUnsupportedFileType() {
+        Notice notice = Notice.builder()
+                .id(1L)
+                .title("첨부 공지")
+                .content("첨부파일이 있습니다.")
+                .important(false)
+                .author(createAuthor())
+                .build();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "script.exe",
+                "application/octet-stream",
+                "executable".getBytes()
+        );
+        given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(notice));
+
+        assertThatThrownBy(() -> noticeService.uploadAttachment(1L, file))
+                .isInstanceOf(NoticeException.class)
+                .extracting("code")
+                .isEqualTo(NoticeErrorCode.INVALID_ATTACHMENT);
     }
 
     private User createAuthor() {

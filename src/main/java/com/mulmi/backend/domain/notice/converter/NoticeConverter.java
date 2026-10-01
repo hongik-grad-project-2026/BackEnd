@@ -2,9 +2,13 @@ package com.mulmi.backend.domain.notice.converter;
 
 import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
+import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeSummaryResponseDTO;
 import com.mulmi.backend.domain.notice.entity.Notice;
+import com.mulmi.backend.domain.notice.entity.NoticeAttachment;
 import com.mulmi.backend.domain.user.entity.User;
+
+import java.util.List;
 
 public class NoticeConverter {
 
@@ -31,7 +35,10 @@ public class NoticeConverter {
         );
     }
 
-    public static NoticeDetailResponseDTO toNoticeDetailResponseDTO(Notice notice) {
+    public static NoticeDetailResponseDTO toNoticeDetailResponseDTO(
+            Notice notice,
+            List<NoticeAttachmentResponseDTO> attachments
+    ) {
         return new NoticeDetailResponseDTO(
                 notice.getId(),
                 notice.getTitle(),
@@ -40,7 +47,22 @@ public class NoticeConverter {
                 notice.getAuthor().getId(),
                 notice.getAuthor().getName(),
                 notice.getCreatedAt(),
-                notice.getUpdatedAt()
+                notice.getUpdatedAt(),
+                attachments
+        );
+    }
+
+    public static NoticeAttachmentResponseDTO toNoticeAttachmentResponseDTO(
+            NoticeAttachment attachment
+    ) {
+        return new NoticeAttachmentResponseDTO(
+                attachment.getId(),
+                attachment.getOriginalFileName(),
+                attachment.getContentType(),
+                attachment.getFileSize(),
+                "/api/notices/" + attachment.getNotice().getId()
+                        + "/attachments/" + attachment.getId() + "/download",
+                attachment.getCreatedAt()
         );
     }
 }

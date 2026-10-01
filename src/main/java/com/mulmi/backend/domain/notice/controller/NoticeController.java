@@ -3,6 +3,7 @@ package com.mulmi.backend.domain.notice.controller;
 import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.request.NoticeUpdateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
+import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.exception.code.NoticeSuccessCode;
 import com.mulmi.backend.domain.notice.service.NoticeService;
@@ -25,6 +26,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 @Validated
 @RestController
@@ -98,5 +102,19 @@ public class NoticeController {
     ) {
         noticeService.deleteNotice(noticeId);
         return ApiResponse.onSuccess(NoticeSuccessCode.NOTICE_DELETED, null);
+    }
+
+    // 공지사항 첨부파일 업로드
+    @Operation(summary = "공지사항 첨부파일 업로드")
+    @PostMapping(value = "/{noticeId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<NoticeAttachmentResponseDTO> uploadAttachment(
+            @PathVariable Long noticeId,
+            @RequestPart("file") MultipartFile file
+    ) {
+        return ApiResponse.onSuccess(
+                NoticeSuccessCode.ATTACHMENT_UPLOADED,
+                noticeService.uploadAttachment(noticeId, file)
+        );
     }
 }

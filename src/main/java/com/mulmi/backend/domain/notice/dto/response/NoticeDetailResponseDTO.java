@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.notice.dto.response;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record NoticeDetailResponseDTO(
         Long noticeId,
@@ -10,6 +11,7 @@ public record NoticeDetailResponseDTO(
         Long authorId,
         String authorName,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        List<NoticeAttachmentResponseDTO> attachments
 ) {
 }

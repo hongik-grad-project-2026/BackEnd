@@ -3,7 +3,9 @@ package com.mulmi.backend.domain.notice.service;
 import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.request.NoticeUpdateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
+import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface NoticeService {
 
@@ -16,4 +18,6 @@ public interface NoticeService {
     NoticeDetailResponseDTO updateNotice(Long noticeId, NoticeUpdateRequestDTO dto);
 
     void deleteNotice(Long noticeId);
+
+    NoticeAttachmentResponseDTO uploadAttachment(Long noticeId, MultipartFile file);
 }
