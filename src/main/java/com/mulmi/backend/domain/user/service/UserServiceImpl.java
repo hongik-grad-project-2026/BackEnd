@@ -20,24 +20,37 @@ import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
 
 import com.mulmi.backend.global.jwt.JwtUtil;
+import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class UserServiceImpl implements UserService {
+
+    private static final long MAX_PROFILE_IMAGE_SIZE = 5 * 1024 * 1024;
+    private static final Set<String> PROFILE_IMAGE_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+    );
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final S3StorageService s3StorageService;
 
 
     //회원가입
@@ -86,7 +99,7 @@ public class UserServiceImpl implements UserService {
     public MyInfoResponseDTO getMyInfo(Long userId) {
         User user = findActiveUser(userId);
 
-        return UserConverter.toMyInfoResponseDTO(user);
+        return toMyInfoResponseDTO(user);
     }
 
     @Override
@@ -100,7 +113,28 @@ public class UserServiceImpl implements UserService {
 
         user.updateContactInfo(dto.email(), dto.phoneNumber());
 
-        return UserConverter.toMyInfoResponseDTO(user);
+        return toMyInfoResponseDTO(user);
+    }
+
+    @Override
+    @Transactional
+    public MyInfoResponseDTO updateProfileImage(Long userId, MultipartFile image) {
+        User user = findActiveUser(userId);
+        validateProfileImage(image);
+
+        String previousObjectKey = user.getProfileImageUrl();
+        String objectKey = s3StorageService.upload(image, "profile-images/" + userId);
+        user.updateProfileImage(objectKey);
+
+        if (previousObjectKey != null && !previousObjectKey.isBlank()) {
+            try {
+                s3StorageService.delete(previousObjectKey);
+            } catch (RuntimeException exception) {
+                log.warn("기존 프로필 이미지 삭제 실패: {}", previousObjectKey, exception);
+            }
+        }
+
+        return toMyInfoResponseDTO(user);
     }
 
     // 회원탈퇴
@@ -145,7 +179,7 @@ public class UserServiceImpl implements UserService {
     // 특정 학생 정보 조회
     @Override
     public AdminUserDetailResponseDTO getUser(Long userId) {
-        return UserConverter.toAdminUserDetailResponseDTO(findStudent(userId));
+        return toAdminUserDetailResponseDTO(findStudent(userId));
     }
 
     // 학생 정보 수정
@@ -176,7 +210,7 @@ public class UserServiceImpl implements UserService {
 
         user.updateByAdmin(name, email, phoneNumber, college, department);
         userRepository.flush();
-        return UserConverter.toAdminUserDetailResponseDTO(user);
+        return toAdminUserDetailResponseDTO(user);
     }
 
     // 근로생 목록 조회
@@ -217,6 +251,30 @@ public class UserServiceImpl implements UserService {
             return null;
         }
         return value.trim();
+    }
+
+    private void validateProfileImage(MultipartFile image) {
+        if (image == null || image.isEmpty()
+                || !PROFILE_IMAGE_CONTENT_TYPES.contains(image.getContentType())) {
+            throw new UserException(UserErrorCode.INVALID_PROFILE_IMAGE);
+        }
+        if (image.getSize() > MAX_PROFILE_IMAGE_SIZE) {
+            throw new UserException(UserErrorCode.PROFILE_IMAGE_TOO_LARGE);
+        }
+    }
+
+    private MyInfoResponseDTO toMyInfoResponseDTO(User user) {
+        return UserConverter.toMyInfoResponseDTO(
+                user,
+                s3StorageService.createDownloadUrl(user.getProfileImageUrl())
+        );
+    }
+
+    private AdminUserDetailResponseDTO toAdminUserDetailResponseDTO(User user) {
+        return UserConverter.toAdminUserDetailResponseDTO(
+                user,
+                s3StorageService.createDownloadUrl(user.getProfileImageUrl())
+        );
     }
 
     //중복 검사 메서드

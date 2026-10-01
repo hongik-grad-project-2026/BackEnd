@@ -44,7 +44,7 @@ public class UserConverter {
         );
     }
 
-    public static MyInfoResponseDTO toMyInfoResponseDTO(User user) {
+    public static MyInfoResponseDTO toMyInfoResponseDTO(User user, String profileImageUrl) {
         return new MyInfoResponseDTO(
                 user.getId(),
                 user.getLoginId(),
@@ -54,7 +54,7 @@ public class UserConverter {
                 user.getPhoneNumber(),
                 user.getCollege(),
                 user.getDepartment(),
-                user.getProfileImageUrl(),
+                profileImageUrl,
                 user.getRole(),
                 user.getStatus()
         );
@@ -74,7 +74,10 @@ public class UserConverter {
         );
     }
 
-    public static AdminUserDetailResponseDTO toAdminUserDetailResponseDTO(User user) {
+    public static AdminUserDetailResponseDTO toAdminUserDetailResponseDTO(
+            User user,
+            String profileImageUrl
+    ) {
         return new AdminUserDetailResponseDTO(
                 user.getId(),
                 user.getLoginId(),
@@ -84,7 +87,7 @@ public class UserConverter {
                 user.getPhoneNumber(),
                 user.getCollege(),
                 user.getDepartment(),
-                user.getProfileImageUrl(),
+                profileImageUrl,
                 user.getStatus(),
                 user.getCreatedAt(),
                 user.getUpdatedAt()

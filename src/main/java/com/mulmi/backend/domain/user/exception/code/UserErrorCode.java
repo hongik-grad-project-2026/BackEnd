@@ -49,6 +49,18 @@ public enum UserErrorCode implements BaseErrorCode {
             HttpStatus.BAD_REQUEST,
             "USER400_1",
             "수정할 정보를 입력해 주세요."
+    ),
+
+    INVALID_PROFILE_IMAGE(
+            HttpStatus.BAD_REQUEST,
+            "USER400_2",
+            "JPG, PNG, WEBP 형식의 프로필 이미지만 업로드할 수 있습니다."
+    ),
+
+    PROFILE_IMAGE_TOO_LARGE(
+            HttpStatus.PAYLOAD_TOO_LARGE,
+            "USER413_1",
+            "프로필 이미지는 5MB를 넘을 수 없습니다."
     );
 
     private final HttpStatus status;

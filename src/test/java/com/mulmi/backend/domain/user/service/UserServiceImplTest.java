@@ -13,12 +13,14 @@ import com.mulmi.backend.domain.user.exception.UserException;
 import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
 import com.mulmi.backend.global.jwt.JwtUtil;
+import com.mulmi.backend.global.storage.S3StorageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -42,6 +44,9 @@ class UserServiceImplTest {
 
     @Mock
     private JwtUtil jwtUtil;
+
+    @Mock
+    private S3StorageService s3StorageService;
 
     @InjectMocks
     private UserServiceImpl userService;
@@ -295,6 +300,64 @@ class UserServiceImplTest {
                 .isInstanceOf(UserException.class)
                 .extracting("code")
                 .isEqualTo(UserErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    void updateProfileImageUploadsImageAndReturnsDownloadUrl() {
+        User user = createUser();
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "profile.png",
+                "image/png",
+                "image-content".getBytes()
+        );
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(s3StorageService.upload(image, "profile-images/1"))
+                .willReturn("profile-images/1/new-image.png");
+        given(s3StorageService.createDownloadUrl("profile-images/1/new-image.png"))
+                .willReturn("https://example.com/profile.png");
+
+        MyInfoResponseDTO result = userService.updateProfileImage(1L, image);
+
+        assertThat(user.getProfileImageUrl()).isEqualTo("profile-images/1/new-image.png");
+        assertThat(result.profileImageUrl()).isEqualTo("https://example.com/profile.png");
+    }
+
+    @Test
+    void updateProfileImageReplacesAndDeletesPreviousImage() {
+        User user = createUser();
+        user.updateProfileImage("profile-images/1/old-image.png");
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "profile.jpg",
+                "image/jpeg",
+                "new-image-content".getBytes()
+        );
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(s3StorageService.upload(image, "profile-images/1"))
+                .willReturn("profile-images/1/new-image.jpg");
+
+        userService.updateProfileImage(1L, image);
+
+        verify(s3StorageService).delete("profile-images/1/old-image.png");
+        assertThat(user.getProfileImageUrl()).isEqualTo("profile-images/1/new-image.jpg");
+    }
+
+    @Test
+    void updateProfileImageRejectsUnsupportedFileType() {
+        User user = createUser();
+        MockMultipartFile image = new MockMultipartFile(
+                "image",
+                "profile.gif",
+                "image/gif",
+                "image-content".getBytes()
+        );
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> userService.updateProfileImage(1L, image))
+                .isInstanceOf(UserException.class)
+                .extracting("code")
+                .isEqualTo(UserErrorCode.INVALID_PROFILE_IMAGE);
     }
 
     @Test

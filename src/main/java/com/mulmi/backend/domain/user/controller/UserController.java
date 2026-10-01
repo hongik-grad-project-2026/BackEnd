@@ -19,7 +19,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.MediaType;
 
 @RestController
 @RequiredArgsConstructor
@@ -58,6 +61,19 @@ public class UserController {
         return ApiResponse.onSuccess(
                 UserSuccessCode.UPDATED,
                 userService.updateMyInfo(userId, dto)
+        );
+    }
+
+    // 프로필 사진 업로드 및 교체
+    @Operation(summary = "프로필 사진 업로드")
+    @PatchMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<MyInfoResponseDTO> updateProfileImage(
+            @AuthenticationPrincipal Long userId,
+            @RequestPart("image") MultipartFile image) {
+        return ApiResponse.onSuccess(
+                UserSuccessCode.PROFILE_IMAGE_UPDATED,
+                userService.updateProfileImage(userId, image)
         );
     }
 
