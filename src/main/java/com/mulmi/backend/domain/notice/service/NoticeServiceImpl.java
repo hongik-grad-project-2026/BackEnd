@@ -147,6 +147,22 @@ public class NoticeServiceImpl implements NoticeService {
         }
     }
 
+    @Override
+    public String createAttachmentDownloadUrl(Long noticeId, Long attachmentId) {
+        findNotice(noticeId);
+        NoticeAttachment attachment = noticeAttachmentRepository
+                .findByIdAndNoticeId(attachmentId, noticeId)
+                .orElseThrow(() -> new NoticeException(
+                        NoticeErrorCode.ATTACHMENT_NOT_FOUND
+                ));
+
+        return s3StorageService.createDownloadUrl(
+                attachment.getFileUrl(),
+                attachment.getOriginalFileName(),
+                attachment.getContentType()
+        );
+    }
+
     private Notice findNotice(Long noticeId) {
         return noticeRepository.findByIdAndDeletedAtIsNull(noticeId)
                 .orElseThrow(() -> new NoticeException(NoticeErrorCode.NOTICE_NOT_FOUND));

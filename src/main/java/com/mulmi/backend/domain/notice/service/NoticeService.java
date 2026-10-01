@@ -20,4 +20,6 @@ public interface NoticeService {
     void deleteNotice(Long noticeId);
 
     NoticeAttachmentResponseDTO uploadAttachment(Long noticeId, MultipartFile file);
+
+    String createAttachmentDownloadUrl(Long noticeId, Long attachmentId);
 }

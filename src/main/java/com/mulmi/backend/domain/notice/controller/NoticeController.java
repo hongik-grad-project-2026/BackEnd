@@ -29,6 +29,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import java.net.URI;
 
 @Validated
 @RestController
@@ -116,5 +120,21 @@ public class NoticeController {
                 NoticeSuccessCode.ATTACHMENT_UPLOADED,
                 noticeService.uploadAttachment(noticeId, file)
         );
+    }
+
+    // 공지사항 첨부파일 다운로드
+    @Operation(summary = "공지사항 첨부파일 다운로드")
+    @GetMapping("/{noticeId}/attachments/{attachmentId}/download")
+    public ResponseEntity<Void> downloadAttachment(
+            @PathVariable Long noticeId,
+            @PathVariable Long attachmentId
+    ) {
+        String downloadUrl = noticeService.createAttachmentDownloadUrl(
+                noticeId,
+                attachmentId
+        );
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(downloadUrl))
+                .build();
     }
 }

@@ -308,6 +308,59 @@ class NoticeServiceImplTest {
                 .isEqualTo(NoticeErrorCode.INVALID_ATTACHMENT);
     }
 
+    @Test
+    void createAttachmentDownloadUrlReturnsPresignedUrl() {
+        Notice notice = Notice.builder()
+                .id(1L)
+                .title("첨부 공지")
+                .content("첨부파일이 있습니다.")
+                .important(false)
+                .author(createAuthor())
+                .build();
+        NoticeAttachment attachment = NoticeAttachment.builder()
+                .id(10L)
+                .notice(notice)
+                .originalFileName("대여안내.pdf")
+                .storedFileName("generated.pdf")
+                .fileUrl("notices/1/attachments/generated.pdf")
+                .contentType("application/pdf")
+                .fileSize(100L)
+                .build();
+        given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(notice));
+        given(noticeAttachmentRepository.findByIdAndNoticeId(10L, 1L))
+                .willReturn(Optional.of(attachment));
+        given(s3StorageService.createDownloadUrl(
+                "notices/1/attachments/generated.pdf",
+                "대여안내.pdf",
+                "application/pdf"
+        )).willReturn("https://example.com/download");
+
+        String result = noticeService.createAttachmentDownloadUrl(1L, 10L);
+
+        assertThat(result).isEqualTo("https://example.com/download");
+    }
+
+    @Test
+    void createAttachmentDownloadUrlRejectsAttachmentFromAnotherNotice() {
+        Notice notice = Notice.builder()
+                .id(1L)
+                .title("첨부 공지")
+                .content("첨부파일이 있습니다.")
+                .important(false)
+                .author(createAuthor())
+                .build();
+        given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(notice));
+        given(noticeAttachmentRepository.findByIdAndNoticeId(10L, 1L))
+                .willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> noticeService.createAttachmentDownloadUrl(1L, 10L))
+                .isInstanceOf(NoticeException.class)
+                .extracting("code")
+                .isEqualTo(NoticeErrorCode.ATTACHMENT_NOT_FOUND);
+    }
+
     private User createAuthor() {
         return User.builder()
                 .id(2L)
