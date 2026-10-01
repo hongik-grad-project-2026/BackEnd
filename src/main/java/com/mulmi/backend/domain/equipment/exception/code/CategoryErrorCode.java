@@ -15,6 +15,12 @@ public enum CategoryErrorCode implements BaseErrorCode {
             "이미 등록된 카테고리입니다."
     ),
 
+    CATEGORY_HAS_MODELS(
+            HttpStatus.CONFLICT,
+            "CATEGORY409_2",
+            "이 카테고리에는 등록된 모델이 있어 삭제할 수 없습니다."
+    ),
+
     CATEGORY_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "CATEGORY404_1",

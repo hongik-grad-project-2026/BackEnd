@@ -17,5 +17,7 @@ public interface CategoryService {
     // 카테고리 수정
     CategoryResponseDTO updateCategory(Long categoryId, CategoryUpdateRequestDTO dto);
 
-    // 카테고리 삭제는 EquipmentModel 엔티티가 생긴 뒤에 추가한다.
+    // 카테고리 삭제
+    void deleteCategory(Long categoryId);
+
 }
