@@ -19,8 +19,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDate;
-
 @Entity
 @Getter
 @Builder
@@ -49,7 +47,4 @@ public class EquipmentItem extends BaseEntity {
 
     @Column(name = "memo", nullable = true, columnDefinition = "TEXT")
     private String memo;
-
-    @Column(name = "disposed_at")
-    private LocalDate disposedAt;
 }

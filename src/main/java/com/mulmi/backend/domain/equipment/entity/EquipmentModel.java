@@ -22,6 +22,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+
 @Entity
 @Getter
 @Builder
@@ -75,5 +77,6 @@ public class EquipmentModel extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private EquipmentModelStatus rentalStatus;
 
-
+    @Column(name = "disposal_date", nullable = false)
+    private LocalDate disposalDate;
 }

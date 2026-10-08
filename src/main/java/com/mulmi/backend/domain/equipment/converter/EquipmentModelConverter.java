@@ -28,6 +28,7 @@ public class EquipmentModelConverter {
                 .loanDurationDays(dto.loanDurationDays())
                 .pledgeRequired(dto.pledgeRequired())
                 .rentalStatus(dto.rentalStatus())
+                .disposalDate(dto.disposalDate())
                 .build();
     }
 

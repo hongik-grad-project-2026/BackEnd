@@ -8,6 +8,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.time.LocalDate;
+
 public record EquipmentModelCreateRequestDTO(
         @NotNull(message = "카테고리는 필수입니다.")
         Long categoryId,
@@ -39,7 +41,7 @@ public record EquipmentModelCreateRequestDTO(
         @NotNull(message = "서약서 필요 여부는 필수입니다.")
         Boolean pledgeRequired,
 
-        @NotNull(message = "초기 수량은 필수입니다.")
-        @Min(value = 1, message = "초기 수량은 1개 이상이어야 합니다.")
-        Integer initialQuantity) {
+        @NotNull(message = "폐기일은 필수입니다.")
+        LocalDate disposalDate
+        ) {
 }

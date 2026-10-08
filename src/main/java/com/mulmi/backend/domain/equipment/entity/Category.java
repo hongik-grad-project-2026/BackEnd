@@ -19,6 +19,9 @@ public class Category extends BaseEntity {
     @Column(name= "category_name", nullable = false, unique = true, length = 50)
     private String name;
 
+    @Column(name = "label_required", nullable = false)
+    private boolean labelRequired;
+
     public void updateCategoryName(String name) {
         this.name = name;
     }
