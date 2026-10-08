@@ -37,9 +37,6 @@ public class EquipmentItem extends BaseEntity {
     @JoinColumn(name = "model_id", nullable = false)
     private EquipmentModel equipmentModel;
 
-    @Column(name="asset_no", nullable = true, length = 50, unique = true)
-    private String assetNo;
-
     @Column(name="label_number", nullable = false)
     private Integer labelNumber;
 

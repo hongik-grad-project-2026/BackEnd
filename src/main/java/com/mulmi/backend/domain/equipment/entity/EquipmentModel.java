@@ -45,7 +45,7 @@ public class EquipmentModel extends BaseEntity {
     @Column(name = "model_name", nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = true, columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String components;
 
     @Column(nullable = true, columnDefinition = "TEXT")

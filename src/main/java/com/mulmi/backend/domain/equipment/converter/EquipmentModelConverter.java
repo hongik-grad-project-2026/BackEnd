@@ -27,16 +27,15 @@ public class EquipmentModelConverter {
                 .loanPeriodType(dto.loanPeriodType())
                 .loanDurationDays(dto.loanDurationDays())
                 .pledgeRequired(dto.pledgeRequired())
-                .rentalStatus(EquipmentModelStatus.AVAILABLE)
+                .rentalStatus(dto.rentalStatus())
                 .build();
     }
 
-    // 모델 + 비품번호 + 발급 번호 -> EquipmentItem 한 대
-    public static EquipmentItem toEquipmentItem(EquipmentModel model, String assetNo, int labelNumber) {
+    // 모델 + 발급 번호 -> EquipmentItem 한 대
+    public static EquipmentItem toEquipmentItem(EquipmentModel model, int labelNumber) {
         String labelCode = String.format("%s-%03d", model.getLabelPrefix().getCode(), labelNumber);
         return EquipmentItem.builder()
                 .equipmentModel(model)
-                .assetNo(assetNo)
                 .labelNumber(labelNumber)
                 .labelCode(labelCode)
                 .status(EquipmentItemStatus.AVAILABLE)
