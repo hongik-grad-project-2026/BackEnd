@@ -18,6 +18,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Getter
@@ -35,12 +37,13 @@ public class EquipmentItem extends BaseEntity {
     @JoinColumn(name = "model_id", nullable = false)
     private EquipmentModel equipmentModel;
 
-    @Column(name="label_number", nullable = false)
+    @Column(name="label_number")
     private Integer labelNumber;
 
-    @Column(name="label_code", length = 30, nullable = false, unique = true)
+    @Column(name="label_code", length = 30, unique = true)
     private String labelCode;
 
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Enumerated(EnumType.STRING)
     @Column(name="status", length = 30, nullable = false)
     private EquipmentItemStatus status;

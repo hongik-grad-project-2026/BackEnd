@@ -3,7 +3,6 @@ package com.mulmi.backend.domain.equipment.dto.request;
 import com.mulmi.backend.domain.equipment.enums.ApplicationPolicy;
 import com.mulmi.backend.domain.equipment.enums.EquipmentModelStatus;
 import com.mulmi.backend.domain.equipment.enums.LoanPeriodType;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -14,8 +13,8 @@ public record EquipmentModelCreateRequestDTO(
         @NotNull(message = "카테고리는 필수입니다.")
         Long categoryId,
 
-        @NotNull(message = "라벨번호 접두사는 필수입니다.")
-        Long prefixId,
+        @Size(max = 10)
+        String prefixCode,
 
         @Size(max = 100, message = "모델명은 100자를 넘을 수 없습니다.")
         @NotBlank(message = "모델명은 필수입니다.")

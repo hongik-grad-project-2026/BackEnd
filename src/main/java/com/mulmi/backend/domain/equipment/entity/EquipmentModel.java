@@ -21,6 +21,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 
@@ -41,7 +43,7 @@ public class EquipmentModel extends BaseEntity {
     private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "prefix_id", nullable = false)
+    @JoinColumn(name = "prefix_id")
     private LabelPrefix labelPrefix;
 
     @Column(name = "model_name", nullable = false, length = 100)
@@ -59,10 +61,12 @@ public class EquipmentModel extends BaseEntity {
     @Column(name = "model_image_url", nullable = true, length = 1000)
     private String modelImageUrl;
 
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "application_policy", nullable = false, length = 30)
     @Enumerated(EnumType.STRING)
     private ApplicationPolicy applicationPolicy;
 
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "loan_period_type", nullable = false, length = 30)
     @Enumerated(EnumType.STRING)
     private LoanPeriodType loanPeriodType;
@@ -73,6 +77,7 @@ public class EquipmentModel extends BaseEntity {
     @Column(name = "pledge_required", nullable = false)
     private boolean pledgeRequired;
 
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "rental_status", nullable = false, length = 30)
     @Enumerated(EnumType.STRING)
     private EquipmentModelStatus rentalStatus;

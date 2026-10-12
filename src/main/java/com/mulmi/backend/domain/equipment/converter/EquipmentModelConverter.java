@@ -7,9 +7,6 @@ import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
 import com.mulmi.backend.domain.equipment.entity.LabelPrefix;
 import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
-import com.mulmi.backend.domain.equipment.enums.EquipmentModelStatus;
-
-import java.util.List;
 
 public class EquipmentModelConverter {
 
@@ -45,12 +42,9 @@ public class EquipmentModelConverter {
 
     // 저장된 모델 + 생성된 아이템 목록 -> 응답 DTO
     public static EquipmentModelCreateResponseDTO toEquipmentModelCreateResponseDTO(
-            EquipmentModel model, List<EquipmentItem> items) {
+            EquipmentModel model) {
         return new EquipmentModelCreateResponseDTO(
-                model.getId(),
-                items.size(),
-                items.get(0).getLabelCode(),
-                items.get(items.size() - 1).getLabelCode()
+                model.getId()
         );
     }
 }

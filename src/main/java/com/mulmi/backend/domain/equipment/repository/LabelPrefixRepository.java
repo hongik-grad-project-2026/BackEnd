@@ -11,4 +11,6 @@ public interface LabelPrefixRepository extends JpaRepository<LabelPrefix, Long> 
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<LabelPrefix> findWithLockById(Long labelPrefixId);
+
+    Optional<LabelPrefix> findByCode(String code);
 }
