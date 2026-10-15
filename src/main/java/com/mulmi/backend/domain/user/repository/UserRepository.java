@@ -24,6 +24,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByLoginId(String loginId);
 
+    Optional<User> findByStudentIdAndNameAndEmailAndStatus(
+            String studentId,
+            String name,
+            String email,
+            UserStatus status
+    );
+
     List<User> findAllByRoleAndStatusOrderByNameAsc(UserRole role, UserStatus status);
 
     @Query("""

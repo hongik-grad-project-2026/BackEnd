@@ -61,6 +61,60 @@ public enum UserErrorCode implements BaseErrorCode {
             HttpStatus.PAYLOAD_TOO_LARGE,
             "USER413_1",
             "프로필 이미지는 5MB를 넘을 수 없습니다."
+    ),
+
+    PASSWORD_RESET_VERIFICATION_NOT_FOUND(
+            HttpStatus.BAD_REQUEST,
+            "USER400_3",
+            "인증정보가 일치하지 않습니다."
+    ),
+
+    PASSWORD_RESET_CODE_INVALID(
+            HttpStatus.BAD_REQUEST,
+            "USER400_4",
+            "인증번호가 올바르지 않습니다."
+    ),
+
+    PASSWORD_RESET_CODE_EXPIRED(
+            HttpStatus.GONE,
+            "USER410_1",
+            "인증번호가 만료되었습니다."
+    ),
+
+    PASSWORD_RESET_TOO_MANY_ATTEMPTS(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "USER429_1",
+            "인증번호 입력 가능 횟수를 초과했습니다. 인증번호를 다시 요청해 주세요."
+    ),
+
+    PASSWORD_RESET_RESEND_TOO_SOON(
+            HttpStatus.TOO_MANY_REQUESTS,
+            "USER429_2",
+            "인증번호는 1분 후 다시 요청할 수 있습니다."
+    ),
+
+    PASSWORD_RESET_TOKEN_INVALID(
+            HttpStatus.BAD_REQUEST,
+            "USER400_5",
+            "비밀번호 재설정 요청이 올바르지 않습니다."
+    ),
+
+    PASSWORD_RESET_TOKEN_EXPIRED(
+            HttpStatus.GONE,
+            "USER410_2",
+            "비밀번호 재설정 시간이 만료되었습니다."
+    ),
+
+    PASSWORD_CONFIRM_MISMATCH(
+            HttpStatus.BAD_REQUEST,
+            "USER400_6",
+            "새 비밀번호와 비밀번호 확인이 일치하지 않습니다."
+    ),
+
+    PASSWORD_RESET_MAIL_FAILED(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "USER503_1",
+            "인증 메일을 전송할 수 없습니다. 잠시 후 다시 시도해 주세요."
     );
 
     private final HttpStatus status;

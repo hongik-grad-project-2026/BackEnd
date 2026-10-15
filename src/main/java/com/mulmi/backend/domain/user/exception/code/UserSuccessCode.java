@@ -59,6 +59,21 @@ public enum UserSuccessCode implements BaseSuccessCode {
             HttpStatus.OK,
             "USER200_10",
             "프로필 사진을 업로드했습니다."
+    ),
+    PASSWORD_RESET_CODE_SENT(
+            HttpStatus.OK,
+            "USER200_11",
+            "입력한 정보와 일치하는 계정이 있으면 인증번호를 전송합니다."
+    ),
+    PASSWORD_RESET_VERIFIED(
+            HttpStatus.OK,
+            "USER200_12",
+            "인증번호 확인이 완료되었습니다."
+    ),
+    PASSWORD_RESET_COMPLETED(
+            HttpStatus.OK,
+            "USER200_13",
+            "비밀번호 재설정이 완료되었습니다."
     );
 
     private final HttpStatus status;
