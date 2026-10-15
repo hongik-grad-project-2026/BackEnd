@@ -2,6 +2,7 @@ package com.mulmi.backend.domain.equipment.converter;
 
 import com.mulmi.backend.domain.equipment.dto.response.CategoryResponseDTO;
 import com.mulmi.backend.domain.equipment.entity.Category;
+import com.mulmi.backend.domain.equipment.enums.LoanPeriodType;
 
 public class CategoryConverter {
 
@@ -9,6 +10,11 @@ public class CategoryConverter {
     public static Category toCategory(String name) {
         return Category.builder()
                 .name(name)
+                .regularRentalEnabled(false)
+                .loanPeriodType(LoanPeriodType.FIXED_DAYS)
+                .loanDurationDays(1)
+                .pickupPhotoRequired(false)
+                .pledgeRequired(false)
                 .build();
     }
 

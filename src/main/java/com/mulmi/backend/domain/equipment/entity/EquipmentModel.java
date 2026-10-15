@@ -1,8 +1,6 @@
 package com.mulmi.backend.domain.equipment.entity;
 
-import com.mulmi.backend.domain.equipment.enums.ApplicationPolicy;
 import com.mulmi.backend.domain.equipment.enums.EquipmentModelStatus;
-import com.mulmi.backend.domain.equipment.enums.LoanPeriodType;
 import com.mulmi.backend.global.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -60,22 +58,6 @@ public class EquipmentModel extends BaseEntity {
 
     @Column(name = "model_image_url", nullable = true, length = 1000)
     private String modelImageUrl;
-
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(name = "application_policy", nullable = false, length = 30)
-    @Enumerated(EnumType.STRING)
-    private ApplicationPolicy applicationPolicy;
-
-    @JdbcTypeCode(SqlTypes.VARCHAR)
-    @Column(name = "loan_period_type", nullable = false, length = 30)
-    @Enumerated(EnumType.STRING)
-    private LoanPeriodType loanPeriodType;
-
-    @Column(name = "loan_duration_days", nullable = true)
-    private Integer loanDurationDays;
-
-    @Column(name = "pledge_required", nullable = false)
-    private boolean pledgeRequired;
 
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "rental_status", nullable = false, length = 30)

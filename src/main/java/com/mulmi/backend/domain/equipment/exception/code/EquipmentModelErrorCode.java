@@ -8,10 +8,17 @@ import org.springframework.http.HttpStatus;
 @Getter
 @AllArgsConstructor
 public enum EquipmentModelErrorCode implements BaseErrorCode {
-    INVALID_EQUIPMENT_POLICY(
+
+    LABEL_PREFIX_REQUIRED(
             HttpStatus.BAD_REQUEST,
-            "EQUIPMENTMODEL400_1",
-            "대여 정책 조합이 올바르지 않습니다."
+            "EQUIPMENTMODEL400_2",
+            "라벨을 쓰는 카테고리는 접두사가 필요합니다."
+    ),
+
+    LABEL_PREFIX_NOT_ALLOWED(
+            HttpStatus.BAD_REQUEST,
+            "EQUIPMENTMODEL400_3",
+            "라벨을 쓰지 않는 카테고리에는 접두사를 입력할 수 없습니다."
     ),
 
     DUPLICATE_MODEL(

@@ -1,8 +1,6 @@
 package com.mulmi.backend.domain.equipment.dto.request;
 
-import com.mulmi.backend.domain.equipment.enums.ApplicationPolicy;
 import com.mulmi.backend.domain.equipment.enums.EquipmentModelStatus;
-import com.mulmi.backend.domain.equipment.enums.LoanPeriodType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -28,17 +26,6 @@ public record EquipmentModelCreateRequestDTO(
 
         @NotNull(message = "상태는 필수입니다.")
         EquipmentModelStatus rentalStatus,
-
-        @NotNull(message = "신청 방식은 필수입니다.")
-        ApplicationPolicy applicationPolicy,
-
-        @NotNull(message = "대여 기간 유형은 필수입니다.")
-        LoanPeriodType loanPeriodType,
-
-        Integer loanDurationDays,
-
-        @NotNull(message = "서약서 필요 여부는 필수입니다.")
-        Boolean pledgeRequired,
 
         @NotNull(message = "폐기일은 필수입니다.")
         LocalDate disposalDate
