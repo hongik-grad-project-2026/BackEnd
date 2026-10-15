@@ -43,6 +43,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/users",
                                 "/api/login",
+                                "/api/password-reset",
+                                "/api/password-reset/**",
                                 "/api/health",
                                 "/mulmi-api",
                                 "/swagger-ui.html",
