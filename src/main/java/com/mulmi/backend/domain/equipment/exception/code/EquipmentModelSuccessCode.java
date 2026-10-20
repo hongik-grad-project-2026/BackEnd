@@ -11,7 +11,7 @@ public enum EquipmentModelSuccessCode implements BaseSuccessCode {
     MODEL_CREATED(
             HttpStatus.CREATED,
             "EQUIPMENTMODEL201_1",
-            "기자재 모델과 기자재를 등록했습니다."
+            "기자재 모델을 등록했습니다."
     );
 
     private final HttpStatus status;
