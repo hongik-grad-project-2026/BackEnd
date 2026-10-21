@@ -60,7 +60,7 @@ public class AdminCategoryController {
     @PreAuthorize("hasRole('ASSISTANT')")
     public ApiResponse<Void> deleteCategory(@PathVariable Long categoryId) {
         categoryService.deleteCategory(categoryId);
-        return ApiResponse.onSuccess(CategorySuccessCode.DELETED, null);
+        return ApiResponse.onSuccess(CategorySuccessCode.DELETED, null);ㅅ스웨
     }
 
 }
