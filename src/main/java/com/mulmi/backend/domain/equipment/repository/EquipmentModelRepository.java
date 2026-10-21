@@ -7,4 +7,5 @@ public interface EquipmentModelRepository extends JpaRepository<EquipmentModel, 
 
     long countByCategoryIdAndDeletedAtIsNull(Long categoryId);
 
+    boolean existsByCategoryIdAndName(Long categoryId, String name);
 }

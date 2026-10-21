@@ -1,8 +1,6 @@
 package com.mulmi.backend.domain.equipment.entity;
 
-import com.mulmi.backend.domain.equipment.enums.ApplicationPolicy;
 import com.mulmi.backend.domain.equipment.enums.EquipmentModelStatus;
-import com.mulmi.backend.domain.equipment.enums.LoanPeriodType;
 import com.mulmi.backend.global.common.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,6 +19,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.time.LocalDate;
 
 @Entity
 @Getter
@@ -39,13 +41,13 @@ public class EquipmentModel extends BaseEntity {
     private Category category;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "prefix_id", nullable = false)
+    @JoinColumn(name = "prefix_id")
     private LabelPrefix labelPrefix;
 
     @Column(name = "model_name", nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = true, columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String components;
 
     @Column(nullable = true, columnDefinition = "TEXT")
@@ -57,23 +59,11 @@ public class EquipmentModel extends BaseEntity {
     @Column(name = "model_image_url", nullable = true, length = 1000)
     private String modelImageUrl;
 
-    @Column(name = "application_policy", nullable = false, length = 30)
-    @Enumerated(EnumType.STRING)
-    private ApplicationPolicy applicationPolicy;
-
-    @Column(name = "loan_period_type", nullable = false, length = 30)
-    @Enumerated(EnumType.STRING)
-    private LoanPeriodType loanPeriodType;
-
-    @Column(name = "loan_duration_days", nullable = true)
-    private Integer loanDurationDays;
-
-    @Column(name = "pledge_required", nullable = false)
-    private boolean pledgeRequired;
-
+    @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "rental_status", nullable = false, length = 30)
     @Enumerated(EnumType.STRING)
     private EquipmentModelStatus rentalStatus;
 
-
+    @Column(name = "disposal_date", nullable = false)
+    private LocalDate disposalDate;
 }
