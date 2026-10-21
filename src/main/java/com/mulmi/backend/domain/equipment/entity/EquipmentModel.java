@@ -66,4 +66,6 @@ public class EquipmentModel extends BaseEntity {
 
     @Column(name = "disposal_date", nullable = false)
     private LocalDate disposalDate;
+
+    public void updateModelImage(String modelImageUrl) { this.modelImageUrl = modelImageUrl; }
 }

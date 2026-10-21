@@ -3,6 +3,7 @@ package com.mulmi.backend.domain.equipment.service;
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.converter.EquipmentModelConverter;
+import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelImageUploadResponseDTO;
 import com.mulmi.backend.domain.equipment.entity.Category;
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
 import com.mulmi.backend.domain.equipment.entity.LabelPrefix;
@@ -15,18 +16,32 @@ import com.mulmi.backend.domain.equipment.exception.code.LabelPrefixErrorCode;
 import com.mulmi.backend.domain.equipment.repository.CategoryRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
+import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Set;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class EquipmentModelServiceImpl implements EquipmentModelService {
 
+    private static final long MAX_MODEL_IMAGE_SIZE = 5 * 1024 * 1024;
+    private static final Set<String> MODEL_IMAGE_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/webp"
+    );
+
     private final EquipmentModelRepository equipmentModelRepository;
     private final CategoryRepository categoryRepository;
     private final LabelPrefixRepository labelPrefixRepository;
+    private final S3StorageService s3StorageService;
 
     // 모델 등록
     @Override
@@ -77,6 +92,50 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
             return null;
         }
         return prefixCode.trim();
+    }
+
+    // 모델 이미지 업로드
+    @Override
+    @Transactional
+    public EquipmentModelImageUploadResponseDTO uploadModelImage(Long modelId, MultipartFile image) {
+        // 1. 모델 조회
+        EquipmentModel model = findActiveModel(modelId);
+
+        // 2. 이미지 검증 (형식, 용량)
+        validateModelImage(image);
+
+        // 3. 새 이미지 업로드 후 objectKey로 교체 (기존 키는 삭제용으로 기억)
+        String previousObjectKey = model.getModelImageUrl();
+        String objectKey = s3StorageService.upload(image, "model-images/" + modelId);
+        model.updateModelImage(objectKey);
+
+        // 4. 기존 이미지 삭제 (실패해도 업로드는 성공 처리)
+        if (previousObjectKey != null && !previousObjectKey.isBlank()) {
+            try {
+                s3StorageService.delete(previousObjectKey);
+            } catch (RuntimeException exception) {
+                log.warn("기존 모델 이미지 삭제 실패: {}", previousObjectKey, exception);
+            }
+        }
+
+        return new EquipmentModelImageUploadResponseDTO(model.getId());
+    }
+
+    // 삭제되지 않은 모델 조회
+    private EquipmentModel findActiveModel(Long modelId) {
+        return equipmentModelRepository.findByIdAndDeletedAtIsNull(modelId)
+                .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
+    }
+
+    // 모델 이미지 검증 : JPG/PNG/WEBP, 5MB 이하
+    private void validateModelImage(MultipartFile image) {
+        if (image == null || image.isEmpty()
+                || !MODEL_IMAGE_CONTENT_TYPES.contains(image.getContentType())) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.INVALID_MODEL_IMAGE);
+        }
+        if (image.getSize() > MAX_MODEL_IMAGE_SIZE) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.MODEL_IMAGE_TOO_LARGE);
+        }
     }
 
 }
