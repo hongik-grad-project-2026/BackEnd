@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.equipment.controller;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelPageResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelImageUploadResponseDTO;
 import com.mulmi.backend.domain.equipment.exception.code.EquipmentModelSuccessCode;
@@ -12,11 +13,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -52,6 +55,22 @@ public class AdminEquipmentModelController {
         return ApiResponse.onSuccess(
                 EquipmentModelSuccessCode.IMAGE_UPLOADED,
                 equipmentModelService.uploadModelImage(modelId, image)
+        );
+    }
+
+    // 관리자 모델 목록 조회
+    @Operation(summary = "기자재 모델 목록")
+    @GetMapping
+    @PreAuthorize("hasRole('ASSISTANT')")
+    public ApiResponse<AdminEquipmentModelPageResponseDTO> getModelPage(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ApiResponse.onSuccess(
+                EquipmentModelSuccessCode.MODELS_FOUND,
+                equipmentModelService.getAdminEquipmentModels(categoryId, keyword, page, size)
         );
     }
 }

@@ -3,6 +3,8 @@ package com.mulmi.backend.domain.equipment.service;
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.converter.EquipmentModelConverter;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelPageResponseDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelSummaryResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelImageUploadResponseDTO;
 import com.mulmi.backend.domain.equipment.entity.Category;
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
@@ -14,16 +16,26 @@ import com.mulmi.backend.domain.equipment.exception.code.CategoryErrorCode;
 import com.mulmi.backend.domain.equipment.exception.code.EquipmentModelErrorCode;
 import com.mulmi.backend.domain.equipment.exception.code.LabelPrefixErrorCode;
 import com.mulmi.backend.domain.equipment.repository.CategoryRepository;
+import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository;
+import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository.ModelStockCount;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
+import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository.CategoryModelCount;
 import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
 import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -39,6 +51,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     );
 
     private final EquipmentModelRepository equipmentModelRepository;
+    private final EquipmentItemRepository equipmentItemRepository;
     private final CategoryRepository categoryRepository;
     private final LabelPrefixRepository labelPrefixRepository;
     private final S3StorageService s3StorageService;
@@ -119,6 +132,63 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         }
 
         return new EquipmentModelImageUploadResponseDTO(model.getId());
+    }
+
+    // 관리자 모델 목록 조회
+    @Override
+    public AdminEquipmentModelPageResponseDTO getAdminEquipmentModels(
+            Long categoryId, String keyword, int page, int size) {
+        // 1. 모델 한 페이지 조회 (최신 등록순)
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
+        Page<EquipmentModel> models = equipmentModelRepository.searchModels(
+                categoryId, normalizeKeyword(keyword), pageable);
+
+        // 2. 이번 페이지 모델들의 재고를 한 번에 집계 -> modelId로 꺼낼 수 있게 Map으로
+        Map<Long, ModelStockCount> stockByModelId = countStock(models.getContent());
+
+        // 3. 모델마다 DTO로 변환 (기기 없는 모델은 집계 결과에 없으므로 0 / 0)
+        Page<AdminEquipmentModelSummaryResponseDTO> responsePage = models.map(model -> {
+            ModelStockCount stock = stockByModelId.get(model.getId());
+            return EquipmentModelConverter.toAdminEquipmentModelSummaryResponseDTO(
+                    model,
+                    s3StorageService.createDownloadUrl(model.getModelImageUrl()),
+                    stock == null ? 0 : stock.getAvailableCount(),
+                    stock == null ? 0 : stock.getTotalCount()
+            );
+        });
+
+        // 4. 카테고리 탭 옆 숫자
+        return AdminEquipmentModelPageResponseDTO.of(responsePage, countModelsByCategory());
+    }
+
+    // 모델 목록의 재고 집계 (빈 페이지면 쿼리 생략)
+    private Map<Long, ModelStockCount> countStock(List<EquipmentModel> models) {
+        if (models.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> modelIds = models.stream().map(EquipmentModel::getId).toList();
+        return equipmentItemRepository.countStockByModelIds(modelIds).stream()
+                .collect(Collectors.toMap(ModelStockCount::getModelId, stock -> stock));
+    }
+
+    // 카테고리별 모델 수 + "all" 합계
+    private Map<String, Long> countModelsByCategory() {
+        Map<String, Long> counts = new HashMap<>();
+        long total = 0;
+        for (CategoryModelCount count : equipmentModelRepository.countModelsByCategory()) {
+            counts.put(String.valueOf(count.getCategoryId()), count.getModelCount());
+            total += count.getModelCount();
+        }
+        counts.put("all", total);
+        return counts;
+    }
+
+    // 빈 검색어는 조건 없음(null)으로
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim();
     }
 
     // 삭제되지 않은 모델 조회
