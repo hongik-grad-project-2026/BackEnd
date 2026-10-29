@@ -1,7 +1,9 @@
 package com.mulmi.backend.domain.equipment.controller;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentItemPageResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
+import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelPageResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelImageUploadResponseDTO;
@@ -85,6 +87,23 @@ public class AdminEquipmentModelController {
         return ApiResponse.onSuccess(
                 EquipmentModelSuccessCode.MODEL_FOUND,
                 equipmentModelService.getAdminEquipmentModel(modelId)
+        );
+    }
+
+    // 모델별 기기 목록 조회
+    @Operation(summary = "모델별 기기 목록 조회")
+    @GetMapping("/{model_id}/items")
+    @PreAuthorize("hasRole('ASSISTANT')")
+    public ApiResponse<AdminEquipmentItemPageResponseDTO> getItemPage(
+            @PathVariable("model_id") Long modelId,
+            @RequestParam(required = false) EquipmentItemStatus status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ApiResponse.onSuccess(
+                EquipmentModelSuccessCode.ITEMS_FOUND,
+                equipmentModelService.getAdminEquipmentItems(modelId, status, keyword, page, size)
         );
     }
 }

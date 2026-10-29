@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.equipment.converter;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentItemSummaryResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelSummaryResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
@@ -36,6 +37,17 @@ public class EquipmentModelConverter {
                 .labelCode(labelCode)
                 .status(EquipmentItemStatus.AVAILABLE)
                 .build();
+    }
+
+    // 기기 -> 모델별 기기 목록 한 줄
+    public static AdminEquipmentItemSummaryResponseDTO toAdminEquipmentItemSummaryResponseDTO(
+            EquipmentItem item) {
+        return new AdminEquipmentItemSummaryResponseDTO(
+                item.getId(),
+                item.getLabelCode(),
+                item.getStatus(),
+                item.getMemo()
+        );
     }
 
     // 저장된 모델 + 생성된 아이템 목록 -> 응답 DTO

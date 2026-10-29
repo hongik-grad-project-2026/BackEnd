@@ -3,7 +3,10 @@ package com.mulmi.backend.domain.equipment.service;
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.converter.EquipmentModelConverter;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentItemPageResponseDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentItemSummaryResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
+import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelPageResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelSummaryResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelImageUploadResponseDTO;
@@ -19,6 +22,7 @@ import com.mulmi.backend.domain.equipment.exception.code.LabelPrefixErrorCode;
 import com.mulmi.backend.domain.equipment.repository.CategoryRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository.ModelStockCount;
+import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository.StatusCount;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository.CategoryModelCount;
 import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
@@ -33,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -166,6 +171,40 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     @Override
     public AdminEquipmentModelDetailResponseDTO getAdminEquipmentModel(Long modelId) {
         return EquipmentModelConverter.toAdminEquipmentModelDetailResponseDTO(findActiveModel(modelId));
+    }
+
+    // 모델별 기기 목록 조회
+    @Override
+    public AdminEquipmentItemPageResponseDTO getAdminEquipmentItems(
+            Long modelId, EquipmentItemStatus status, String keyword, int page, int size) {
+        // 1. 모델 존재 확인 (없으면 404)
+        findActiveModel(modelId);
+
+        // 2. 기기 한 페이지 조회 (라벨 번호순)
+        PageRequest pageable = PageRequest.of(page, size,
+                Sort.by(Sort.Direction.ASC, "labelNumber").and(Sort.by(Sort.Direction.ASC, "id")));
+        Page<AdminEquipmentItemSummaryResponseDTO> responsePage = equipmentItemRepository
+                .searchItems(modelId, status, normalizeKeyword(keyword), pageable)
+                .map(EquipmentModelConverter::toAdminEquipmentItemSummaryResponseDTO);
+
+        // 3. 상태 탭 옆 숫자
+        return AdminEquipmentItemPageResponseDTO.of(responsePage, countItemsByStatus(modelId));
+    }
+
+    // 상태별 기기 수 + "all" 합계 (기기가 없는 상태도 0으로 채움)
+    private Map<String, Long> countItemsByStatus(Long modelId) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put("all", 0L);
+        for (EquipmentItemStatus itemStatus : EquipmentItemStatus.values()) {
+            counts.put(itemStatus.name(), 0L);
+        }
+        long total = 0;
+        for (StatusCount count : equipmentItemRepository.countByStatus(modelId)) {
+            counts.put(count.getStatus().name(), count.getCount());
+            total += count.getCount();
+        }
+        counts.put("all", total);
+        return counts;
     }
 
     // 모델 목록의 재고 집계 (빈 페이지면 쿼리 생략)
