@@ -1,6 +1,9 @@
 package com.mulmi.backend.domain.equipment.converter;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentItemSummaryResponseDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelSummaryResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.entity.Category;
 import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
@@ -36,11 +39,54 @@ public class EquipmentModelConverter {
                 .build();
     }
 
+    // 기기 -> 모델별 기기 목록 한 줄
+    public static AdminEquipmentItemSummaryResponseDTO toAdminEquipmentItemSummaryResponseDTO(
+            EquipmentItem item) {
+        return new AdminEquipmentItemSummaryResponseDTO(
+                item.getId(),
+                item.getLabelCode(),
+                item.getStatus(),
+                item.getMemo()
+        );
+    }
+
     // 저장된 모델 + 생성된 아이템 목록 -> 응답 DTO
     public static EquipmentModelCreateResponseDTO toEquipmentModelCreateResponseDTO(
             EquipmentModel model) {
         return new EquipmentModelCreateResponseDTO(
                 model.getId()
+        );
+    }
+
+    // 모델 -> 기기 목록 페이지 머리말 (다음 라벨 번호 = 접두사의 마지막 번호 + 1)
+    public static AdminEquipmentModelDetailResponseDTO toAdminEquipmentModelDetailResponseDTO(
+            EquipmentModel model) {
+        LabelPrefix prefix = model.getLabelPrefix();
+        return new AdminEquipmentModelDetailResponseDTO(
+                model.getId(),
+                model.getName(),
+                prefix == null ? null : prefix.getCode(),
+                prefix == null ? null : prefix.getLastNumber() + 1
+        );
+    }
+
+    // 모델 + 이미지 URL + 재고 -> 관리자 목록 한 줄
+    public static AdminEquipmentModelSummaryResponseDTO toAdminEquipmentModelSummaryResponseDTO(
+            EquipmentModel model, String modelImageUrl, long availableCount, long totalCount) {
+        return new AdminEquipmentModelSummaryResponseDTO(
+                model.getId(),
+                modelImageUrl,
+                model.getName(),
+                model.getCategory().getId(),
+                model.getCategory().getName(),
+                model.getComponents(),
+                model.getSpecification(),
+                model.getDescription(),
+                availableCount,
+                totalCount,
+                model.getRentalStatus(),
+                model.getCreatedAt().toLocalDate(),
+                model.getDisposalDate()
         );
     }
 }
