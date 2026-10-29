@@ -13,9 +13,12 @@ import com.mulmi.backend.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
+@Validated
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/equipment-models")
 @Tag(name = "모델 관리", description = "조교용 모델 관리 API")
@@ -68,8 +72,8 @@ public class AdminEquipmentModelController {
     public ApiResponse<AdminEquipmentModelPageResponseDTO> getModelPage(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
         return ApiResponse.onSuccess(
                 EquipmentModelSuccessCode.MODELS_FOUND,
@@ -98,8 +102,8 @@ public class AdminEquipmentModelController {
             @PathVariable("model_id") Long modelId,
             @RequestParam(required = false) EquipmentItemStatus status,
             @RequestParam(required = false) String keyword,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size
     ) {
         return ApiResponse.onSuccess(
                 EquipmentModelSuccessCode.ITEMS_FOUND,
