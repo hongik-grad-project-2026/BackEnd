@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.equipment.converter;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelSummaryResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.entity.Category;
@@ -42,6 +43,18 @@ public class EquipmentModelConverter {
             EquipmentModel model) {
         return new EquipmentModelCreateResponseDTO(
                 model.getId()
+        );
+    }
+
+    // 모델 -> 기기 목록 페이지 머리말 (다음 라벨 번호 = 접두사의 마지막 번호 + 1)
+    public static AdminEquipmentModelDetailResponseDTO toAdminEquipmentModelDetailResponseDTO(
+            EquipmentModel model) {
+        LabelPrefix prefix = model.getLabelPrefix();
+        return new AdminEquipmentModelDetailResponseDTO(
+                model.getId(),
+                model.getName(),
+                prefix == null ? null : prefix.getCode(),
+                prefix == null ? null : prefix.getLastNumber() + 1
         );
     }
 

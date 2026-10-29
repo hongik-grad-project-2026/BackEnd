@@ -3,6 +3,7 @@ package com.mulmi.backend.domain.equipment.service;
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.converter.EquipmentModelConverter;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelPageResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelSummaryResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelImageUploadResponseDTO;
@@ -159,6 +160,12 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
 
         // 4. 카테고리 탭 옆 숫자
         return AdminEquipmentModelPageResponseDTO.of(responsePage, countModelsByCategory());
+    }
+
+    // 관리자 모델 단건 조회
+    @Override
+    public AdminEquipmentModelDetailResponseDTO getAdminEquipmentModel(Long modelId) {
+        return EquipmentModelConverter.toAdminEquipmentModelDetailResponseDTO(findActiveModel(modelId));
     }
 
     // 모델 목록의 재고 집계 (빈 페이지면 쿼리 생략)

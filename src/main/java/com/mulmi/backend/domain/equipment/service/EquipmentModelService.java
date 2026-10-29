@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.equipment.service;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelPageResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelImageUploadResponseDTO;
@@ -17,6 +18,9 @@ public interface EquipmentModelService {
     // 관리자 모델 목록 조회
     AdminEquipmentModelPageResponseDTO getAdminEquipmentModels(
             Long categoryId, String keyword, int page, int size);
+
+    // 관리자 모델 단건 조회 (기기 목록 페이지 머리말)
+    AdminEquipmentModelDetailResponseDTO getAdminEquipmentModel(Long modelId);
 
 }
 

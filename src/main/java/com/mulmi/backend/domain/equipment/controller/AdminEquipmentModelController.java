@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.equipment.controller;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelPageResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelImageUploadResponseDTO;
@@ -71,6 +72,19 @@ public class AdminEquipmentModelController {
         return ApiResponse.onSuccess(
                 EquipmentModelSuccessCode.MODELS_FOUND,
                 equipmentModelService.getAdminEquipmentModels(categoryId, keyword, page, size)
+        );
+    }
+
+    // 관리자 모델 단건 조회 (기기 목록 페이지 머리말)
+    @Operation(summary = "기자재 모델 단건 조회")
+    @GetMapping("/{model_id}")
+    @PreAuthorize("hasRole('ASSISTANT')")
+    public ApiResponse<AdminEquipmentModelDetailResponseDTO> getModel(
+            @PathVariable("model_id") Long modelId
+    ) {
+        return ApiResponse.onSuccess(
+                EquipmentModelSuccessCode.MODEL_FOUND,
+                equipmentModelService.getAdminEquipmentModel(modelId)
         );
     }
 }
