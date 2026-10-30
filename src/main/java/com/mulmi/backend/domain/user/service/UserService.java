@@ -42,6 +42,7 @@ public interface UserService {
             UserStatus status,
             String college,
             String department,
+            String excludeDepartment,
             int page,
             int size
     );

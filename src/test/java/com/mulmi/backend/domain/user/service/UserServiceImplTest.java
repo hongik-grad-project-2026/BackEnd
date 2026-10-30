@@ -160,6 +160,7 @@ class UserServiceImplTest {
                 UserStatus.ACTIVE,
                 "공과대학",
                 "컴퓨터공학과",
+                null,
                 pageable
         )).willReturn(new PageImpl<>(List.of(user), pageable, 1));
 
@@ -168,6 +169,7 @@ class UserServiceImplTest {
                 UserStatus.ACTIVE,
                 " 공과대학 ",
                 " 컴퓨터공학과 ",
+                null,
                 0,
                 20
         );
@@ -195,10 +197,11 @@ class UserServiceImplTest {
                 null,
                 null,
                 null,
+                null,
                 pageable
         )).willReturn(new PageImpl<>(List.of(), pageable, 0));
 
-        userService.getUsers(" ", null, "", "   ", 1, 10);
+        userService.getUsers(" ", null, "", "   ", " ", 1, 10);
 
         verify(userRepository).findUsers(
                 UserRole.STUDENT,
@@ -206,6 +209,46 @@ class UserServiceImplTest {
                 null,
                 null,
                 null,
+                null,
+                pageable
+        );
+    }
+
+    @Test
+    void getUsersExcludesStudentsFromSpecifiedDepartment() {
+        PageRequest pageable = PageRequest.of(
+                0,
+                20,
+                Sort.by(Sort.Direction.DESC, "id")
+        );
+        given(userRepository.findUsers(
+                UserRole.STUDENT,
+                null,
+                UserStatus.ACTIVE,
+                null,
+                null,
+                "컴퓨터공학과",
+                pageable
+        )).willReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        AdminUserPageResponseDTO result = userService.getUsers(
+                null,
+                UserStatus.ACTIVE,
+                null,
+                null,
+                " 컴퓨터공학과 ",
+                0,
+                20
+        );
+
+        assertThat(result.users()).isEmpty();
+        verify(userRepository).findUsers(
+                UserRole.STUDENT,
+                null,
+                UserStatus.ACTIVE,
+                null,
+                null,
+                "컴퓨터공학과",
                 pageable
         );
     }

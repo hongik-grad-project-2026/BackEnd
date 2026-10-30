@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,7 +38,10 @@ public class AdminUserController {
     private final UserService userService;
 
     // 회원 목록 조회
-    @Operation(summary = "회원 목록 조회")
+    @Operation(
+            summary = "회원 목록 조회",
+            description = "department는 해당 학과만, excludeDepartment는 해당 학과를 제외해 조회합니다."
+    )
     @GetMapping
     @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
     public ApiResponse<AdminUserPageResponseDTO> getUsers(
@@ -45,12 +49,21 @@ public class AdminUserController {
             @RequestParam(required = false) UserStatus status,
             @RequestParam(required = false) String college,
             @RequestParam(required = false) String department,
+            @RequestParam(required = false) @Size(max = 100) String excludeDepartment,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
         return ApiResponse.onSuccess(
                 UserSuccessCode.USERS_FOUND,
-                userService.getUsers(keyword, status, college, department, page, size)
+                userService.getUsers(
+                        keyword,
+                        status,
+                        college,
+                        department,
+                        excludeDepartment,
+                        page,
+                        size
+                )
         );
     }
 

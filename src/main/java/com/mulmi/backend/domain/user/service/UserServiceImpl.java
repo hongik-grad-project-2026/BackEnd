@@ -153,6 +153,7 @@ public class UserServiceImpl implements UserService {
             UserStatus status,
             String college,
             String department,
+            String excludeDepartment,
             int page,
             int size
     ) {
@@ -167,6 +168,7 @@ public class UserServiceImpl implements UserService {
                 status,
                 normalize(college),
                 normalize(department),
+                normalize(excludeDepartment),
                 pageable
         );
         Page<AdminUserSummaryResponseDTO> responsePage = users.map(
