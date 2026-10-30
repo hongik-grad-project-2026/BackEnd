@@ -10,6 +10,7 @@ import com.mulmi.backend.domain.equipment.exception.code.CategoryErrorCode;
 import com.mulmi.backend.domain.equipment.repository.CategoryRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,9 +35,14 @@ public class CategoryServiceImpl implements CategoryService {
         Optional<Category> found = categoryRepository.findByName(name);
 
         // 같은 이름이 아예 없으면 새로 등록한다.
+        // 위 조회를 동시에 통과한 요청은 DB UNIQUE에서 막히므로 409로 바꾼다.
         if (found.isEmpty()) {
-            Category saved = categoryRepository.save(CategoryConverter.toCategory(name));
-            return CategoryConverter.toCategoryResponseDTO(saved);
+            try {
+                Category saved = categoryRepository.saveAndFlush(CategoryConverter.toCategory(name));
+                return CategoryConverter.toCategoryResponseDTO(saved);
+            } catch (DataIntegrityViolationException exception) {
+                throw new CategoryException(CategoryErrorCode.DUPLICATE_CATEGORY_NAME);
+            }
         }
 
         Category category = found.get();
@@ -78,7 +84,13 @@ public class CategoryServiceImpl implements CategoryService {
         }
 
         // save() 없이 더티 체킹으로 UPDATE된다.
+        // UPDATE는 원래 커밋 때 나가서 여기서 예외를 잡을 수 없으므로 flush로 앞당긴다.
         category.updateCategoryName(name);
+        try {
+            categoryRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new CategoryException(CategoryErrorCode.DUPLICATE_CATEGORY_NAME);
+        }
         return CategoryConverter.toCategoryResponseDTO(category);
     }
 

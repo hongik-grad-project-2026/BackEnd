@@ -29,11 +29,14 @@ import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
 import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
@@ -98,8 +101,13 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         }
 
         // 5. 엔티티 생성 후 저장
+        // 3번 검사를 동시에 통과한 요청은 DB UNIQUE에서 막히므로 여기서 409로 바꾼다
         EquipmentModel model = EquipmentModelConverter.toEquipmentModel(dto, category, labelPrefix);
-        equipmentModelRepository.save(model);
+        try {
+            equipmentModelRepository.saveAndFlush(model);
+        } catch (DataIntegrityViolationException exception) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.DUPLICATE_MODEL);
+        }
 
         // 6. 응답 DTO return
         return EquipmentModelConverter.toEquipmentModelCreateResponseDTO(model);
@@ -123,21 +131,39 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         // 2. 이미지 검증 (형식, 용량)
         validateModelImage(image);
 
-        // 3. 새 이미지 업로드 후 objectKey로 교체 (기존 키는 삭제용으로 기억)
+        // 3. 새 이미지 업로드 (기존 키는 삭제용으로 기억)
         String previousObjectKey = model.getModelImageUrl();
         String objectKey = s3StorageService.upload(image, "model-images/" + modelId);
+
+        // 4. S3는 롤백되지 않으므로 파일 정리는 트랜잭션 결과를 보고 한다
+        //    커밋 → 기존 파일 삭제 / 롤백 → 방금 올린 파일 삭제 / 결과 불명 → 둘 다 보존
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_COMMITTED) {
+                    deleteModelImageQuietly(previousObjectKey);
+                } else if (status == STATUS_ROLLED_BACK) {
+                    deleteModelImageQuietly(objectKey);
+                }
+            }
+        });
+
+        // 5. DB에는 새 키 반영 (커밋 시 UPDATE)
         model.updateModelImage(objectKey);
 
-        // 4. 기존 이미지 삭제 (실패해도 업로드는 성공 처리)
-        if (previousObjectKey != null && !previousObjectKey.isBlank()) {
-            try {
-                s3StorageService.delete(previousObjectKey);
-            } catch (RuntimeException exception) {
-                log.warn("기존 모델 이미지 삭제 실패: {}", previousObjectKey, exception);
-            }
-        }
-
         return new EquipmentModelImageUploadResponseDTO(model.getId());
+    }
+
+    // S3 이미지 삭제 (실패해도 요청 결과에는 영향 없음, 로그만 남김)
+    private void deleteModelImageQuietly(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return;
+        }
+        try {
+            s3StorageService.delete(objectKey);
+        } catch (RuntimeException exception) {
+            log.warn("모델 이미지 삭제 실패: {}", objectKey, exception);
+        }
     }
 
     // 관리자 모델 목록 조회
@@ -245,7 +271,9 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
 
     // 모델 이미지 검증 : JPG/PNG/WEBP, 5MB 이하
     private void validateModelImage(MultipartFile image) {
+        // Set.of는 contains(null)에서 NPE를 던지므로 null을 먼저 거른다
         if (image == null || image.isEmpty()
+                || image.getContentType() == null
                 || !MODEL_IMAGE_CONTENT_TYPES.contains(image.getContentType())) {
             throw new EquipmentModelException(EquipmentModelErrorCode.INVALID_MODEL_IMAGE);
         }
