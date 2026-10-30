@@ -41,6 +41,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
               AND (:college IS NULL OR u.college = :college)
               AND (:department IS NULL OR u.department = :department)
               AND (
+                    :excludeDepartment IS NULL
+                    OR u.department IS NULL
+                    OR u.department <> :excludeDepartment
+                  )
+              AND (
                     :keyword IS NULL
                     OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
                     OR LOWER(u.studentId) LIKE LOWER(CONCAT('%', :keyword, '%'))
@@ -52,6 +57,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             @Param("status") UserStatus status,
             @Param("college") String college,
             @Param("department") String department,
+            @Param("excludeDepartment") String excludeDepartment,
             Pageable pageable
     );
 }
