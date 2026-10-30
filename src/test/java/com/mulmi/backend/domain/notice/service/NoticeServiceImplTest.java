@@ -71,10 +71,10 @@ class NoticeServiceImplTest {
                 Sort.by(Sort.Direction.DESC, "createdAt")
                         .and(Sort.by(Sort.Direction.DESC, "id"))
         );
-        given(noticeRepository.findNotices(null, pageable))
+        given(noticeRepository.findNotices(null, null, pageable))
                 .willReturn(new PageImpl<>(List.of(notice), pageable, 1));
 
-        NoticePageResponseDTO result = noticeService.getNotices(null, 0, 20);
+        NoticePageResponseDTO result = noticeService.getNotices(null, null, 0, 20);
 
         assertThat(result.notices()).hasSize(1);
         assertThat(result.notices().get(0).noticeId()).isEqualTo(1L);
@@ -94,14 +94,52 @@ class NoticeServiceImplTest {
                 Sort.by(Sort.Direction.DESC, "createdAt")
                         .and(Sort.by(Sort.Direction.DESC, "id"))
         );
-        given(noticeRepository.findNotices(true, pageable))
+        given(noticeRepository.findNotices(null, true, pageable))
                 .willReturn(new PageImpl<>(List.of(), pageable, 0));
 
-        NoticePageResponseDTO result = noticeService.getNotices(true, 0, 3);
+        NoticePageResponseDTO result = noticeService.getNotices(null, true, 0, 3);
 
         assertThat(result.notices()).isEmpty();
         assertThat(result.size()).isEqualTo(3);
-        verify(noticeRepository).findNotices(true, pageable);
+        verify(noticeRepository).findNotices(null, true, pageable);
+    }
+
+    @Test
+    void getNoticesSearchesTitleAndContentWithTrimmedKeyword() {
+        PageRequest pageable = PageRequest.of(
+                0,
+                20,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+                        .and(Sort.by(Sort.Direction.DESC, "id"))
+        );
+        given(noticeRepository.findNotices("기자재", null, pageable))
+                .willReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        NoticePageResponseDTO result = noticeService.getNotices(
+                "  기자재  ",
+                null,
+                0,
+                20
+        );
+
+        assertThat(result.notices()).isEmpty();
+        verify(noticeRepository).findNotices("기자재", null, pageable);
+    }
+
+    @Test
+    void getNoticesTreatsBlankKeywordAsNoSearchCondition() {
+        PageRequest pageable = PageRequest.of(
+                0,
+                20,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+                        .and(Sort.by(Sort.Direction.DESC, "id"))
+        );
+        given(noticeRepository.findNotices(null, false, pageable))
+                .willReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        noticeService.getNotices("   ", false, 0, 20);
+
+        verify(noticeRepository).findNotices(null, false, pageable);
     }
 
     @Test
