@@ -29,6 +29,7 @@ import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
 import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -100,8 +101,13 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         }
 
         // 5. 엔티티 생성 후 저장
+        // 3번 검사를 동시에 통과한 요청은 DB UNIQUE에서 막히므로 여기서 409로 바꾼다
         EquipmentModel model = EquipmentModelConverter.toEquipmentModel(dto, category, labelPrefix);
-        equipmentModelRepository.save(model);
+        try {
+            equipmentModelRepository.saveAndFlush(model);
+        } catch (DataIntegrityViolationException exception) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.DUPLICATE_MODEL);
+        }
 
         // 6. 응답 DTO return
         return EquipmentModelConverter.toEquipmentModelCreateResponseDTO(model);
