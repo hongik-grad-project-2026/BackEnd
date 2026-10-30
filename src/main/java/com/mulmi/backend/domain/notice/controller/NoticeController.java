@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -45,17 +46,21 @@ public class NoticeController {
 
     private final NoticeService noticeService;
 
-    // 공지사항 목록 조회
-    @Operation(summary = "공지사항 목록 조회")
+    // 공지사항 목록 조회 및 검색
+    @Operation(
+            summary = "공지사항 목록 조회 및 검색",
+            description = "keyword로 제목과 본문을 검색하며, important 필터와 함께 사용할 수 있습니다."
+    )
     @GetMapping
     public ApiResponse<NoticePageResponseDTO> getNotices(
+            @RequestParam(required = false) @Size(max = 100) String keyword,
             @RequestParam(required = false) Boolean important,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
         return ApiResponse.onSuccess(
                 NoticeSuccessCode.NOTICES_FOUND,
-                noticeService.getNotices(important, page, size)
+                noticeService.getNotices(keyword, important, page, size)
         );
     }
 

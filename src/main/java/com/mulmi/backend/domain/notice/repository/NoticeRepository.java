@@ -18,15 +18,26 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
                     JOIN FETCH n.author
                     WHERE n.deletedAt IS NULL
                       AND (:important IS NULL OR n.important = :important)
+                      AND (
+                          :keyword IS NULL
+                          OR LOWER(n.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                          OR LOWER(n.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                      )
                     """,
             countQuery = """
                     SELECT COUNT(n)
                     FROM Notice n
                     WHERE n.deletedAt IS NULL
                       AND (:important IS NULL OR n.important = :important)
+                      AND (
+                          :keyword IS NULL
+                          OR LOWER(n.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                          OR LOWER(n.content) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                      )
                     """
     )
     Page<Notice> findNotices(
+            @Param("keyword") String keyword,
             @Param("important") Boolean important,
             Pageable pageable
     );

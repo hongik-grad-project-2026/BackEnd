@@ -10,7 +10,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface NoticeService {
 
-    NoticePageResponseDTO getNotices(Boolean important, int page, int size);
+    NoticePageResponseDTO getNotices(
+            String keyword,
+            Boolean important,
+            int page,
+            int size
+    );
 
     NoticeDetailResponseDTO getNotice(Long noticeId);
 

@@ -52,19 +52,36 @@ public class NoticeServiceImpl implements NoticeService {
     private final S3StorageService s3StorageService;
 
     @Override
-    public NoticePageResponseDTO getNotices(Boolean important, int page, int size) {
+    public NoticePageResponseDTO getNotices(
+            String keyword,
+            Boolean important,
+            int page,
+            int size
+    ) {
+        String normalizedKeyword = normalizeKeyword(keyword);
         PageRequest pageable = PageRequest.of(
                 page,
                 size,
                 Sort.by(Sort.Direction.DESC, "createdAt")
                         .and(Sort.by(Sort.Direction.DESC, "id"))
         );
-        Page<Notice> notices = noticeRepository.findNotices(important, pageable);
+        Page<Notice> notices = noticeRepository.findNotices(
+                normalizedKeyword,
+                important,
+                pageable
+        );
         Page<NoticeSummaryResponseDTO> responsePage = notices.map(
                 NoticeConverter::toNoticeSummaryResponseDTO
         );
 
         return NoticePageResponseDTO.from(responsePage);
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim();
     }
 
     @Override
