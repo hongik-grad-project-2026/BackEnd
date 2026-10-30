@@ -100,7 +100,7 @@ public class AdminEquipmentModelController {
     // 모델별 기기 목록 조회
     @Operation(summary = "모델별 기기 목록 조회")
     @GetMapping("/{model_id}/items")
-    @PreAuthorize("hasRole('ASSISTANT')")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
     public ApiResponse<AdminEquipmentItemPageResponseDTO> getItemPage(
             @PathVariable("model_id") Long modelId,
             @RequestParam(required = false) EquipmentItemStatus status,
