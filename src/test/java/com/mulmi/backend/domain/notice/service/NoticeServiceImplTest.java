@@ -309,7 +309,7 @@ class NoticeServiceImplTest {
     }
 
     @Test
-    void createAttachmentDownloadUrlReturnsPresignedUrl() {
+    void downloadAttachmentReturnsStoredFile() {
         Notice notice = Notice.builder()
                 .id(1L)
                 .title("첨부 공지")
@@ -330,19 +330,19 @@ class NoticeServiceImplTest {
                 .willReturn(Optional.of(notice));
         given(noticeAttachmentRepository.findByIdAndNoticeId(10L, 1L))
                 .willReturn(Optional.of(attachment));
-        given(s3StorageService.createDownloadUrl(
-                "notices/1/attachments/generated.pdf",
-                "대여안내.pdf",
-                "application/pdf"
-        )).willReturn("https://example.com/download");
+        byte[] content = "pdf-content".getBytes();
+        given(s3StorageService.download("notices/1/attachments/generated.pdf"))
+                .willReturn(content);
 
-        String result = noticeService.createAttachmentDownloadUrl(1L, 10L);
+        var result = noticeService.downloadAttachment(1L, 10L);
 
-        assertThat(result).isEqualTo("https://example.com/download");
+        assertThat(result.originalFileName()).isEqualTo("대여안내.pdf");
+        assertThat(result.contentType()).isEqualTo("application/pdf");
+        assertThat(result.content()).isEqualTo(content);
     }
 
     @Test
-    void createAttachmentDownloadUrlRejectsAttachmentFromAnotherNotice() {
+    void downloadAttachmentRejectsAttachmentFromAnotherNotice() {
         Notice notice = Notice.builder()
                 .id(1L)
                 .title("첨부 공지")
@@ -355,7 +355,7 @@ class NoticeServiceImplTest {
         given(noticeAttachmentRepository.findByIdAndNoticeId(10L, 1L))
                 .willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> noticeService.createAttachmentDownloadUrl(1L, 10L))
+        assertThatThrownBy(() -> noticeService.downloadAttachment(1L, 10L))
                 .isInstanceOf(NoticeException.class)
                 .extracting("code")
                 .isEqualTo(NoticeErrorCode.ATTACHMENT_NOT_FOUND);

@@ -4,6 +4,7 @@ import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.request.NoticeUpdateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentResponseDTO;
+import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentDownloadResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,5 +22,5 @@ public interface NoticeService {
 
     NoticeAttachmentResponseDTO uploadAttachment(Long noticeId, MultipartFile file);
 
-    String createAttachmentDownloadUrl(Long noticeId, Long attachmentId);
+    NoticeAttachmentDownloadResponseDTO downloadAttachment(Long noticeId, Long attachmentId);
 }

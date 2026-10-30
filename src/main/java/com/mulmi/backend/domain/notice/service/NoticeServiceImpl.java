@@ -5,6 +5,7 @@ import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.request.NoticeUpdateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentResponseDTO;
+import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentDownloadResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeSummaryResponseDTO;
 import com.mulmi.backend.domain.notice.entity.Notice;
@@ -148,7 +149,10 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     @Override
-    public String createAttachmentDownloadUrl(Long noticeId, Long attachmentId) {
+    public NoticeAttachmentDownloadResponseDTO downloadAttachment(
+            Long noticeId,
+            Long attachmentId
+    ) {
         findNotice(noticeId);
         NoticeAttachment attachment = noticeAttachmentRepository
                 .findByIdAndNoticeId(attachmentId, noticeId)
@@ -156,10 +160,11 @@ public class NoticeServiceImpl implements NoticeService {
                         NoticeErrorCode.ATTACHMENT_NOT_FOUND
                 ));
 
-        return s3StorageService.createDownloadUrl(
-                attachment.getFileUrl(),
+        byte[] content = s3StorageService.download(attachment.getFileUrl());
+        return new NoticeAttachmentDownloadResponseDTO(
                 attachment.getOriginalFileName(),
-                attachment.getContentType()
+                attachment.getContentType(),
+                content
         );
     }
 

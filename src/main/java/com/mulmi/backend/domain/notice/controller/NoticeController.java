@@ -4,6 +4,7 @@ import com.mulmi.backend.domain.notice.dto.request.NoticeCreateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.request.NoticeUpdateRequestDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeDetailResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentResponseDTO;
+import com.mulmi.backend.domain.notice.dto.response.NoticeAttachmentDownloadResponseDTO;
 import com.mulmi.backend.domain.notice.dto.response.NoticePageResponseDTO;
 import com.mulmi.backend.domain.notice.exception.code.NoticeSuccessCode;
 import com.mulmi.backend.domain.notice.service.NoticeService;
@@ -29,10 +30,11 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.MediaType;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 
-import java.net.URI;
+import java.nio.charset.StandardCharsets;
 
 @Validated
 @RestController
@@ -125,16 +127,22 @@ public class NoticeController {
     // 공지사항 첨부파일 다운로드
     @Operation(summary = "공지사항 첨부파일 다운로드")
     @GetMapping("/{noticeId}/attachments/{attachmentId}/download")
-    public ResponseEntity<Void> downloadAttachment(
+    public ResponseEntity<byte[]> downloadAttachment(
             @PathVariable Long noticeId,
             @PathVariable Long attachmentId
     ) {
-        String downloadUrl = noticeService.createAttachmentDownloadUrl(
+        NoticeAttachmentDownloadResponseDTO file = noticeService.downloadAttachment(
                 noticeId,
                 attachmentId
         );
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(downloadUrl))
+        ContentDisposition contentDisposition = ContentDisposition.attachment()
+                .filename(file.originalFileName(), StandardCharsets.UTF_8)
                 .build();
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(file.contentType()))
+                .contentLength(file.content().length)
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString())
+                .body(file.content());
     }
 }

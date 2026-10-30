@@ -12,8 +12,6 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.Optional;
@@ -79,24 +77,13 @@ public class S3StorageService {
         return presignGetObject(getObjectRequest);
     }
 
-    public String createDownloadUrl(
-            String objectKey,
-            String originalFileName,
-            String contentType
-    ) {
-        String encodedFileName = URLEncoder
-                .encode(originalFileName, StandardCharsets.UTF_8)
-                .replace("+", "%20");
+    public byte[] download(String objectKey) {
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(properties.bucket())
                 .key(objectKey)
-                .responseContentDisposition(
-                        "attachment; filename*=UTF-8''" + encodedFileName
-                )
-                .responseContentType(contentType)
                 .build();
 
-        return presignGetObject(getObjectRequest);
+        return s3Client.getObjectAsBytes(getObjectRequest).asByteArray();
     }
 
     private String presignGetObject(GetObjectRequest getObjectRequest) {
