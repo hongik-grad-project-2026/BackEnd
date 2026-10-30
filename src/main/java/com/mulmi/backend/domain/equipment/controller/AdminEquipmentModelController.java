@@ -68,7 +68,7 @@ public class AdminEquipmentModelController {
     // 관리자 모델 목록 조회
     @Operation(summary = "기자재 모델 목록")
     @GetMapping
-    @PreAuthorize("hasRole('ASSISTANT')")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER', 'STUDENT')")
     public ApiResponse<AdminEquipmentModelPageResponseDTO> getModelPage(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
@@ -84,7 +84,7 @@ public class AdminEquipmentModelController {
     // 관리자 모델 단건 조회 (기기 목록 페이지 머리말)
     @Operation(summary = "기자재 모델 단건 조회")
     @GetMapping("/{model_id}")
-    @PreAuthorize("hasRole('ASSISTANT')")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER', 'STUDENT')")
     public ApiResponse<AdminEquipmentModelDetailResponseDTO> getModel(
             @PathVariable("model_id") Long modelId
     ) {
