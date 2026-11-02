@@ -20,6 +20,8 @@ import com.mulmi.backend.domain.user.repository.UserRepository;
 import com.mulmi.backend.global.storage.S3StorageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -322,6 +324,47 @@ class NoticeServiceImplTest {
         verify(noticeAttachmentRepository).save(any(NoticeAttachment.class));
     }
 
+    @ParameterizedTest
+    @CsvSource({
+            "기자재 대여 약정서.hwp, application/x-hwp, generated.hwp",
+            "기자재 대여 약정서.HWP, application/octet-stream, generated.hwp",
+            "기자재 대여 약정서.hwpx, application/vnd.hancom.hwpx, generated.hwpx",
+            "기자재 대여 약정서.hwpx, application/zip, generated.hwpx",
+            "기자재 대여 약정서.zip, application/zip, generated.zip",
+            "기자재 대여 약정서.zip, application/x-zip-compressed, generated.zip"
+    })
+    void uploadAttachmentAcceptsDocumentAndArchiveFormats(
+            String originalFileName,
+            String contentType,
+            String storedFileName
+    ) {
+        Notice notice = Notice.builder()
+                .id(1L)
+                .title("첨부 공지")
+                .content("첨부파일이 있습니다.")
+                .important(false)
+                .author(createAuthor())
+                .build();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                originalFileName,
+                contentType,
+                "file-content".getBytes()
+        );
+        given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(notice));
+        given(s3StorageService.upload(file, "notices/1/attachments"))
+                .willReturn("notices/1/attachments/" + storedFileName);
+        given(noticeAttachmentRepository.save(any(NoticeAttachment.class)))
+                .willAnswer(invocation -> invocation.getArgument(0));
+
+        NoticeAttachmentResponseDTO result = noticeService.uploadAttachment(1L, file);
+
+        assertThat(result.originalFileName()).isEqualTo(originalFileName);
+        assertThat(result.contentType()).isEqualTo(contentType);
+        verify(noticeAttachmentRepository).save(any(NoticeAttachment.class));
+    }
+
     @Test
     void uploadAttachmentRejectsUnsupportedFileType() {
         Notice notice = Notice.builder()
@@ -335,6 +378,30 @@ class NoticeServiceImplTest {
                 "file",
                 "script.exe",
                 "application/octet-stream",
+                "executable".getBytes()
+        );
+        given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
+                .willReturn(Optional.of(notice));
+
+        assertThatThrownBy(() -> noticeService.uploadAttachment(1L, file))
+                .isInstanceOf(NoticeException.class)
+                .extracting("code")
+                .isEqualTo(NoticeErrorCode.INVALID_ATTACHMENT);
+    }
+
+    @Test
+    void uploadAttachmentRejectsMismatchedExtensionAndContentType() {
+        Notice notice = Notice.builder()
+                .id(1L)
+                .title("첨부 공지")
+                .content("첨부파일이 있습니다.")
+                .important(false)
+                .author(createAuthor())
+                .build();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "위장파일.pdf",
+                "application/x-msdownload",
                 "executable".getBytes()
         );
         given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
