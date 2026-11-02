@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -42,6 +44,7 @@ public class AdminEquipmentModelController {
     // 모델 등록
     @Operation(summary = "모델 등록")
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasRole('ASSISTANT')")
     public ApiResponse<EquipmentModelCreateResponseDTO> createEquipmentModel(
             @RequestBody @Valid EquipmentModelCreateRequestDTO dto
@@ -68,7 +71,7 @@ public class AdminEquipmentModelController {
     // 관리자 모델 목록 조회
     @Operation(summary = "기자재 모델 목록")
     @GetMapping
-    @PreAuthorize("hasRole('ASSISTANT')")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER', 'STUDENT')")
     public ApiResponse<AdminEquipmentModelPageResponseDTO> getModelPage(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
@@ -84,7 +87,7 @@ public class AdminEquipmentModelController {
     // 관리자 모델 단건 조회 (기기 목록 페이지 머리말)
     @Operation(summary = "기자재 모델 단건 조회")
     @GetMapping("/{model_id}")
-    @PreAuthorize("hasRole('ASSISTANT')")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER', 'STUDENT')")
     public ApiResponse<AdminEquipmentModelDetailResponseDTO> getModel(
             @PathVariable("model_id") Long modelId
     ) {
@@ -97,7 +100,7 @@ public class AdminEquipmentModelController {
     // 모델별 기기 목록 조회
     @Operation(summary = "모델별 기기 목록 조회")
     @GetMapping("/{model_id}/items")
-    @PreAuthorize("hasRole('ASSISTANT')")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
     public ApiResponse<AdminEquipmentItemPageResponseDTO> getItemPage(
             @PathVariable("model_id") Long modelId,
             @RequestParam(required = false) EquipmentItemStatus status,
