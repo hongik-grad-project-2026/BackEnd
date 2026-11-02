@@ -21,7 +21,7 @@ public enum NoticeErrorCode implements BaseErrorCode {
     INVALID_ATTACHMENT(
             HttpStatus.BAD_REQUEST,
             "NOTICE400_1",
-            "PDF, JPG, PNG, DOCX 형식의 첨부파일만 업로드할 수 있습니다."
+            "PDF, JPG, PNG, DOCX, HWP, HWPX, ZIP 형식의 첨부파일만 업로드할 수 있습니다."
     ),
     INVALID_ATTACHMENT_NAME(
             HttpStatus.BAD_REQUEST,

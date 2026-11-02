@@ -31,6 +31,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -39,11 +41,31 @@ import java.util.Set;
 public class NoticeServiceImpl implements NoticeService {
 
     private static final long MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024;
-    private static final Set<String> ATTACHMENT_CONTENT_TYPES = Set.of(
-            "application/pdf",
-            "image/jpeg",
-            "image/png",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    private static final Map<String, Set<String>> ATTACHMENT_CONTENT_TYPES = Map.ofEntries(
+            Map.entry("pdf", Set.of("application/pdf")),
+            Map.entry("jpg", Set.of("image/jpeg")),
+            Map.entry("jpeg", Set.of("image/jpeg")),
+            Map.entry("png", Set.of("image/png")),
+            Map.entry("docx", Set.of(
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )),
+            Map.entry("hwp", Set.of(
+                    "application/x-hwp",
+                    "application/haansofthwp",
+                    "application/vnd.hancom.hwp",
+                    "application/octet-stream"
+            )),
+            Map.entry("hwpx", Set.of(
+                    "application/vnd.hancom.hwpx",
+                    "application/haansofthwpx",
+                    "application/zip",
+                    "application/octet-stream"
+            )),
+            Map.entry("zip", Set.of(
+                    "application/zip",
+                    "application/x-zip-compressed",
+                    "application/octet-stream"
+            ))
     );
 
     private final NoticeRepository noticeRepository;
@@ -200,8 +222,7 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     private String validateAttachment(MultipartFile file) {
-        if (file == null || file.isEmpty()
-                || !ATTACHMENT_CONTENT_TYPES.contains(file.getContentType())) {
+        if (file == null || file.isEmpty()) {
             throw new NoticeException(NoticeErrorCode.INVALID_ATTACHMENT);
         }
         if (file.getSize() > MAX_ATTACHMENT_SIZE) {
@@ -213,10 +234,30 @@ public class NoticeServiceImpl implements NoticeService {
             if (originalFileName.isBlank() || originalFileName.length() > 255) {
                 throw new NoticeException(NoticeErrorCode.INVALID_ATTACHMENT_NAME);
             }
+            if (!isAllowedAttachment(originalFileName, file.getContentType())) {
+                throw new NoticeException(NoticeErrorCode.INVALID_ATTACHMENT);
+            }
             return originalFileName;
         } catch (InvalidPathException | NullPointerException exception) {
             throw new NoticeException(NoticeErrorCode.INVALID_ATTACHMENT_NAME);
         }
+    }
+
+    private boolean isAllowedAttachment(String fileName, String contentType) {
+        int extensionSeparator = fileName.lastIndexOf('.');
+        if (extensionSeparator < 0 || extensionSeparator == fileName.length() - 1) {
+            return false;
+        }
+
+        String extension = fileName.substring(extensionSeparator + 1)
+                .toLowerCase(Locale.ROOT);
+        String normalizedContentType = contentType == null
+                ? ""
+                : contentType.split(";", 2)[0].trim().toLowerCase(Locale.ROOT);
+
+        return ATTACHMENT_CONTENT_TYPES
+                .getOrDefault(extension, Set.of())
+                .contains(normalizedContentType);
     }
 
     private String extractStoredFileName(String objectKey) {
