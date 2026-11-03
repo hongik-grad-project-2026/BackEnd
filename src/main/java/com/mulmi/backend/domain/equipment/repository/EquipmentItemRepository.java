@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface EquipmentItemRepository extends JpaRepository<EquipmentItem, Long> {
@@ -61,4 +62,7 @@ public interface EquipmentItemRepository extends JpaRepository<EquipmentItem, Lo
           GROUP BY i.status
           """)
     List<StatusCount> countByStatus(@Param("modelId") Long modelId);
+
+    // 일괄 등록할 라벨 중 이미 쓰인 게 하나라도 있는지 (폐기된 기기 포함 — 라벨은 재사용하지 않음)
+    boolean existsByLabelCodeIn(Collection<String> labelCodes);
 }

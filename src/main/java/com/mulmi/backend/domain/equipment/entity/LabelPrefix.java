@@ -39,4 +39,7 @@ public class LabelPrefix extends BaseEntity {
         return this.lastNumber;
     }
 
+    public void raiseLastNumberTo(int number) {
+        this.lastNumber = Math.max(this.lastNumber, number);
+    }
 }
