@@ -50,4 +50,23 @@ public class EquipmentItem extends BaseEntity {
 
     @Column(name = "memo", nullable = true, columnDefinition = "TEXT")
     private String memo;
+
+    public void changeStatus(EquipmentItemStatus status) {
+        this.status = status;
+    }
+
+    // 번호와 코드는 항상 함께 바뀐다
+    public void changeLabel(int labelNumber, String labelCode) {
+        this.labelNumber = labelNumber;
+        this.labelCode = labelCode;
+    }
+
+    public void changeMemo(String memo) {
+        this.memo = memo;
+    }
+
+    // 폐기 = 소프트 삭제 (과거 대여 기록이 이 기기를 가리키므로 행은 남긴다)
+    public void dispose() {
+        markDeleted();
+    }
 }

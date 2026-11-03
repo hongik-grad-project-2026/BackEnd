@@ -9,6 +9,18 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum EquipmentItemSuccessCode implements BaseSuccessCode {
 
+    ITEM_UPDATED(
+            HttpStatus.OK,
+            "EQUIPMENTITEM200_1",
+            "기기 정보를 수정했습니다."
+    ),
+
+    ITEM_DISPOSED(
+            HttpStatus.OK,
+            "EQUIPMENTITEM200_2",
+            "기기를 폐기했습니다."
+    ),
+
     ITEMS_CREATED(
             HttpStatus.CREATED,
             "EQUIPMENTITEM201_1",
