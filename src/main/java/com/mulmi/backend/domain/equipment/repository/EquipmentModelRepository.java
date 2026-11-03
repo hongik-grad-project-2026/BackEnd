@@ -21,6 +21,9 @@ public interface EquipmentModelRepository extends JpaRepository<EquipmentModel, 
 
     boolean existsByCategoryIdAndName(Long categoryId, String name);
 
+    // 모델 수정 시 이름 중복 : 자기 자신은 제외 (삭제된 모델은 포함, DB UNIQUE와 같은 기준)
+    boolean existsByCategoryIdAndNameAndIdNot(Long categoryId, String name, Long id);
+
     Optional<EquipmentModel> findByIdAndDeletedAtIsNull(Long id);
 
     // 관리자 모델 목록 : 카테고리·검색어는 null이면 조건 무시

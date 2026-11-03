@@ -39,6 +39,24 @@ public enum EquipmentModelErrorCode implements BaseErrorCode {
             "같은 카테고리에 동일 이름의 모델이 이미 있습니다."
     ),
 
+    LABEL_SETTING_LOCKED(
+            HttpStatus.CONFLICT,
+            "EQUIPMENTMODEL409_2",
+            "기기가 등록된 모델은 카테고리와 접두사를 바꿀 수 없습니다."
+    ),
+
+    MODEL_IN_USE(
+            HttpStatus.CONFLICT,
+            "EQUIPMENTMODEL409_3",
+            "대여 예정이거나 대여 중인 기기가 있어 폐기할 수 없습니다."
+    ),
+
+    MODEL_ALREADY_RETIRED(
+            HttpStatus.CONFLICT,
+            "EQUIPMENTMODEL409_4",
+            "이미 폐기된 모델입니다."
+    ),
+
     MODEL_IMAGE_TOO_LARGE(
             HttpStatus.CONTENT_TOO_LARGE,
             "EQUIPMENTMODEL413_1",

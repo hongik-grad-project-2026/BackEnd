@@ -68,4 +68,23 @@ public class EquipmentModel extends BaseEntity {
     private LocalDate disposalDate;
 
     public void updateModelImage(String modelImageUrl) { this.modelImageUrl = modelImageUrl; }
+
+    // 수정 화면의 모든 칸을 한 번에 반영한다 (이미지는 별도 API)
+    public void update(Category category, LabelPrefix labelPrefix, String name, String components,
+                       String description, String specification,
+                       EquipmentModelStatus rentalStatus, LocalDate disposalDate) {
+        this.category = category;
+        this.labelPrefix = labelPrefix;
+        this.name = name;
+        this.components = components;
+        this.description = description;
+        this.specification = specification;
+        this.rentalStatus = rentalStatus;
+        this.disposalDate = disposalDate;
+    }
+
+    // 폐기 = 소프트 삭제 (목록·신청에서 빠지고 행은 남는다)
+    public void retire() {
+        markDeleted();
+    }
 }
