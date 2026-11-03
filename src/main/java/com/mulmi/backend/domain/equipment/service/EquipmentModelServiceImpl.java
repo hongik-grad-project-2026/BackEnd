@@ -327,12 +327,18 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
 
     // 모델 폐기 : 이미 폐기된 모델을 409로 구분하려고 삭제 여부와 상관없이 조회한다
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void retireEquipmentModel(Long modelId) {
         EquipmentModel model = equipmentModelRepository.findById(modelId)
                 .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
         if (model.getDeletedAt() != null) {
             throw new EquipmentModelException(EquipmentModelErrorCode.MODEL_ALREADY_RETIRED);
+        }
+
+        // 같은 접두사로 진행 중인 일괄 등록이 끝난 뒤에 기기를 확인한다 (잠금만 걸고 결과는 쓰지 않음)
+        // 이후 일괄 등록은 잠금을 얻은 뒤 모델이 폐기된 것을 보고 멈춘다
+        if (model.getLabelPrefix() != null) {
+            labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId());
         }
         if (equipmentItemRepository.existsByEquipmentModelIdAndDeletedAtIsNullAndStatusIn(
                 modelId, List.of(EquipmentItemStatus.RESERVED, EquipmentItemStatus.RENTED))) {

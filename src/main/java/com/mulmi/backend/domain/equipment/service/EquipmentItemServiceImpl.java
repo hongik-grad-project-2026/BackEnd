@@ -61,6 +61,14 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
         if (labelRequired) {
             prefix = labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId())
                     .orElseThrow(() -> new LabelPrefixException(LabelPrefixErrorCode.LABEL_PREFIX_NOT_FOUND));
+
+            // 3-1. 잠금을 기다리는 동안 모델이 폐기됐거나(모델 폐기) 접두사가 바뀌었을 수 있다(모델 수정)
+            //      1번에서 읽은 model 객체는 옛 값이므로 최신 값을 따로 조회해 비교한다
+            Long latestPrefixId = equipmentModelRepository.findActivePrefixId(model.getId())
+                    .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
+            if (!latestPrefixId.equals(prefix.getId())) {
+                throw new EquipmentItemException(EquipmentItemErrorCode.MODEL_CHANGED);
+            }
         }
 
         // 4. 라벨 코드 목록 생성
