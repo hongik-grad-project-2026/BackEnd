@@ -16,6 +16,7 @@ public record AdminEquipmentModelSummaryResponseDTO(
         String description,
         long availableCount,
         long totalCount,
+        boolean favorite,
         EquipmentModelStatus rentalStatus,
         LocalDate receivedDate,
         LocalDate disposalDate

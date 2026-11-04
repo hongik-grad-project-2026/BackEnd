@@ -26,6 +26,7 @@ import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository.Sta
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository.CategoryModelCount;
 import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
+import com.mulmi.backend.domain.favorite.repository.FavoriteRepository;
 import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,6 +65,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     private final CategoryRepository categoryRepository;
     private final LabelPrefixRepository labelPrefixRepository;
     private final S3StorageService s3StorageService;
+    private final FavoriteRepository favoriteRepository;
 
     // 모델 등록
     @Override
@@ -169,7 +171,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     // 관리자 모델 목록 조회
     @Override
     public AdminEquipmentModelPageResponseDTO getAdminEquipmentModels(
-            Long categoryId, String keyword, int page, int size) {
+            Long userId, Long categoryId, String keyword, int page, int size) {
         // 1. 모델 한 페이지 조회 (최신 등록순)
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         Page<EquipmentModel> models = equipmentModelRepository.searchModels(
@@ -177,6 +179,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
 
         // 2. 이번 페이지 모델들의 재고를 한 번에 집계 -> modelId로 꺼낼 수 있게 Map으로
         Map<Long, ModelStockCount> stockByModelId = countStock(models.getContent());
+        Set<Long> favoriteModelIds = findFavoriteModelIds(userId, models.getContent());
 
         // 3. 모델마다 DTO로 변환 (기기 없는 모델은 집계 결과에 없으므로 0 / 0)
         Page<AdminEquipmentModelSummaryResponseDTO> responsePage = models.map(model -> {
@@ -185,7 +188,8 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
                     model,
                     s3StorageService.createDownloadUrl(model.getModelImageUrl()),
                     stock == null ? 0 : stock.getAvailableCount(),
-                    stock == null ? 0 : stock.getTotalCount()
+                    stock == null ? 0 : stock.getTotalCount(),
+                    favoriteModelIds.contains(model.getId())
             );
         });
 
@@ -241,6 +245,14 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         List<Long> modelIds = models.stream().map(EquipmentModel::getId).toList();
         return equipmentItemRepository.countStockByModelIds(modelIds).stream()
                 .collect(Collectors.toMap(ModelStockCount::getModelId, stock -> stock));
+    }
+
+    private Set<Long> findFavoriteModelIds(Long userId, List<EquipmentModel> models) {
+        if (userId == null || models.isEmpty()) {
+            return Set.of();
+        }
+        List<Long> modelIds = models.stream().map(EquipmentModel::getId).toList();
+        return Set.copyOf(favoriteRepository.findFavoriteModelIds(userId, modelIds));
     }
 
     // 카테고리별 모델 수 + "all" 합계

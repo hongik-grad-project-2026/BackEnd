@@ -19,7 +19,7 @@ public interface EquipmentModelService {
 
     // 관리자 모델 목록 조회
     AdminEquipmentModelPageResponseDTO getAdminEquipmentModels(
-            Long categoryId, String keyword, int page, int size);
+            Long userId, Long categoryId, String keyword, int page, int size);
 
     // 관리자 모델 단건 조회 (기기 목록 페이지 머리말)
     AdminEquipmentModelDetailResponseDTO getAdminEquipmentModel(Long modelId);

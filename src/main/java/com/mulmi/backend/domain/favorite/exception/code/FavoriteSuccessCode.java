@@ -19,6 +19,12 @@ public enum FavoriteSuccessCode implements BaseSuccessCode {
             HttpStatus.OK,
             "FAVORITE200_1",
             "찜 목록에서 삭제했습니다."
+    ),
+
+    FAVORITES_FOUND(
+            HttpStatus.OK,
+            "FAVORITE200_2",
+            "찜 목록을 조회했습니다."
     );
 
     private final HttpStatus status;
