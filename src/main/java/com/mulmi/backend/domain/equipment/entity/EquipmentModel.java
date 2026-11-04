@@ -64,6 +64,10 @@ public class EquipmentModel extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private EquipmentModelStatus rentalStatus;
 
+    // 실제로 물건이 들어온(들어올) 날 — 레코드 생성 시각(created_at)과 구분한다
+    @Column(name = "received_date", nullable = false)
+    private LocalDate receivedDate;
+
     @Column(name = "disposal_date", nullable = false)
     private LocalDate disposalDate;
 
@@ -72,7 +76,7 @@ public class EquipmentModel extends BaseEntity {
     // 수정 화면의 모든 칸을 한 번에 반영한다 (이미지는 별도 API)
     public void update(Category category, LabelPrefix labelPrefix, String name, String components,
                        String description, String specification,
-                       EquipmentModelStatus rentalStatus, LocalDate disposalDate) {
+                       EquipmentModelStatus rentalStatus, LocalDate receivedDate, LocalDate disposalDate) {
         this.category = category;
         this.labelPrefix = labelPrefix;
         this.name = name;
@@ -80,6 +84,7 @@ public class EquipmentModel extends BaseEntity {
         this.description = description;
         this.specification = specification;
         this.rentalStatus = rentalStatus;
+        this.receivedDate = receivedDate;
         this.disposalDate = disposalDate;
     }
 

@@ -27,6 +27,12 @@ public enum EquipmentModelErrorCode implements BaseErrorCode {
             "JPG, PNG, WEBP형식만 가능합니다."
     ),
 
+    INVALID_DATE_RANGE(
+            HttpStatus.BAD_REQUEST,
+            "EQUIPMENTMODEL400_5",
+            "입고일은 폐기일보다 늦을 수 없습니다."
+    ),
+
     MODEL_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "EQUIPMENTMODEL404_1",

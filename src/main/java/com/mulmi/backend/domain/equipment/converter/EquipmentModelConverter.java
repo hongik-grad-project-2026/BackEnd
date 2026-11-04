@@ -23,6 +23,7 @@ public class EquipmentModelConverter {
                 .specification(dto.specification())
                 .description(dto.description())
                 .rentalStatus(dto.rentalStatus())
+                .receivedDate(dto.receivedDate())
                 .disposalDate(dto.disposalDate())
                 .build();
     }
@@ -73,7 +74,7 @@ public class EquipmentModelConverter {
                 availableCount,
                 totalCount,
                 model.getRentalStatus(),
-                model.getCreatedAt().toLocalDate(),
+                model.getReceivedDate(),
                 model.getDisposalDate()
         );
     }

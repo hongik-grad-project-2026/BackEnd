@@ -43,6 +43,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -74,9 +75,10 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     @Override
     @Transactional
     public EquipmentModelCreateResponseDTO createEquipmentModel(EquipmentModelCreateRequestDTO dto) {
-        // 0. 접두사 입력 정리
+        // 0. 접두사 입력 정리 + 날짜 순서 검사 (DB 조회 전에 끝낼 수 있는 검사)
         String prefix = normalizePrefixCode(dto.prefixCode());
         String modelName = dto.modelName().trim();
+        validateDateRange(dto.receivedDate(), dto.disposalDate());
 
         // 1. 카테고리 조회
         Category category = categoryRepository.findByIdAndDeletedAtIsNull(dto.categoryId())
@@ -274,6 +276,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     public EquipmentModelUpdateResponseDTO updateEquipmentModel(Long modelId, EquipmentModelUpdateRequestDTO dto) {
         String prefix = normalizePrefixCode(dto.prefixCode());
         String modelName = dto.modelName().trim();
+        validateDateRange(dto.receivedDate(), dto.disposalDate());
 
         // 1. 폐기되지 않은 모델 조회
         EquipmentModel model = findActiveModel(modelId);
@@ -316,7 +319,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
 
         // 5. 반영 : 4번을 동시에 통과한 요청은 DB UNIQUE에서 막히므로 flush로 앞당겨 409로 바꾼다
         model.update(category, labelPrefix, modelName, dto.components(), dto.description(),
-                dto.specification(), dto.rentalStatus(), dto.disposalDate());
+                dto.specification(), dto.rentalStatus(), dto.receivedDate(), dto.disposalDate());
         try {
             equipmentModelRepository.flush();
         } catch (DataIntegrityViolationException exception) {
@@ -355,6 +358,13 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     private EquipmentModel findActiveModel(Long modelId) {
         return equipmentModelRepository.findByIdAndDeletedAtIsNull(modelId)
                 .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
+    }
+
+    // 입고일 ≤ 폐기일 (같은 날은 허용, 미래 입고일도 허용 — 미리 등록할 수 있음)
+    private void validateDateRange(LocalDate receivedDate, LocalDate disposalDate) {
+        if (receivedDate.isAfter(disposalDate)) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.INVALID_DATE_RANGE);
+        }
     }
 
     // 모델 이미지 검증 : JPG/PNG/WEBP, 5MB 이하

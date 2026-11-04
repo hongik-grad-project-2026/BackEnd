@@ -28,6 +28,9 @@ public record EquipmentModelUpdateRequestDTO(
         @NotNull(message = "상태는 필수입니다.")
         EquipmentModelStatus rentalStatus,
 
+        @NotNull(message = "입고일은 필수입니다.")
+        LocalDate receivedDate,
+
         @NotNull(message = "폐기일은 필수입니다.")
         LocalDate disposalDate
 ) {
