@@ -2,9 +2,11 @@ package com.mulmi.backend.domain.equipment.repository;
 
 import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
 import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -78,4 +80,10 @@ public interface EquipmentItemRepository extends JpaRepository<EquipmentItem, Lo
 
     // 일괄 등록할 라벨 중 이미 쓰인 게 하나라도 있는지 (폐기된 기기 포함 — 라벨은 재사용하지 않음)
     boolean existsByLabelCodeIn(Collection<String> labelCodes);
+
+    // 대여 신청: 모델의 대여 가능 기기 중 id가 가장 작은 1대를 잠그며 가져온다
+    // → ORDER BY id LIMIT 1 FOR UPDATE
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<EquipmentItem> findFirstByEquipmentModelIdAndStatusAndDeletedAtIsNullOrderByIdAsc(
+            Long modelId, EquipmentItemStatus status);
 }

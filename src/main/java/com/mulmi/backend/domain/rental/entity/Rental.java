@@ -1,0 +1,74 @@
+package com.mulmi.backend.domain.rental.entity;
+
+import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
+import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
+import com.mulmi.backend.domain.rental.enums.ApplicationType;
+import com.mulmi.backend.domain.rental.enums.RentalStatus;
+import com.mulmi.backend.domain.semester.entity.Semester;
+import com.mulmi.backend.domain.user.entity.User;
+import com.mulmi.backend.global.common.BaseEntity;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Table(name = "rental")
+public class Rental extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "rental_id")
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "model_id", nullable = false)
+    private EquipmentModel equipmentModel;
+
+    // 신청 시점에 배정 (A안). 신청에 성공한 대여는 항상 기기가 있다
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "item_id", nullable = false)
+    private EquipmentItem equipmentItem;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "semester_id")
+    private Semester semester;
+
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "application_type", nullable = false, length = 30)
+    private ApplicationType applicationType;
+
+    @Column(name = "purpose", nullable = false, columnDefinition = "TEXT")
+    private String purpose;
+
+    // 필드 초기값은 @Builder가 무시하므로 @Builder.Default가 필요하다
+    @Builder.Default
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 30)
+    private RentalStatus status = RentalStatus.PENDING_APPROVAL;
+
+    // 11-03: 시간 입력 삭제 → 날짜만
+    @Column(name = "expected_pickup_date", nullable = false)
+    private LocalDate expectedPickupDate;
+
+    // 장기: 신청 때 다음 학기 개강 전날 20:00 / 단기: 실제 수령 때 계산하므로 그때까지 null
+    @Column(name = "expected_return_at")
+    private LocalDateTime expectedReturnAt;
+
+    // 교수 공통 계정의 실제 교수명 등
+    @Column(name = "memo", columnDefinition = "TEXT")
+    private String memo;
+}
