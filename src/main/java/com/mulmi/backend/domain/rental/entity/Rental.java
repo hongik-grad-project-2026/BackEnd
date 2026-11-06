@@ -101,6 +101,22 @@ public class Rental extends BaseEntity {
     @JoinColumn(name = "pickup_checked_by")
     private User pickupCheckedBy;
 
+    // 실제로 기기를 돌려받은 시각 (반납 처리 때 기록)
+    @Column(name = "actual_return_at")
+    private LocalDateTime actualReturnAt;
+
+    // 반납 처리한 근로생·조교
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "return_checked_by")
+    private User returnCheckedBy;
+
+    // 반납 : 상태·사진 검사와 기기 AVAILABLE 변경은 서비스가 한다 (A안)
+    public void returnItem(User staff, LocalDateTime now) {
+        this.status = RentalStatus.RETURNED;
+        this.returnCheckedBy = staff;
+        this.actualReturnAt = now;
+    }
+
     // 수령 : 상태·기한·사진 검사와 기기 RENTED 변경, 단기 반납 예정 계산은 서비스가 한다 (A안)
     // expectedReturnAt : 단기는 이번에 계산한 값, 장기는 신청 때 정한 값을 그대로 넘긴다
     public void pickUp(User staff, LocalDateTime now, LocalDateTime expectedReturnAt) {

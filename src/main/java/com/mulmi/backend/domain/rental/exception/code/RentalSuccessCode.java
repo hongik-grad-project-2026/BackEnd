@@ -37,6 +37,13 @@ public enum RentalSuccessCode implements BaseSuccessCode {
             "기자재 대여를 시작했습니다."
     ),
 
+    // 메시지는 명세 57번 성공 응답
+    RENTAL_RETURNED(
+            HttpStatus.OK,
+            "RENTAL200_5",
+            "기자재 반납을 완료했습니다."
+    ),
+
     // 메시지는 명세 55번 성공 응답
     RENTAL_IMAGE_UPLOADED(
             HttpStatus.CREATED,

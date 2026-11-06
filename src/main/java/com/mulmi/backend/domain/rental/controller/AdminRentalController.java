@@ -16,6 +16,7 @@ import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalReturnResponseDTO;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -87,6 +88,20 @@ public class AdminRentalController {
         return ApiResponse.onSuccess(
                 RentalSuccessCode.RENTAL_CHECKED_OUT,
                 adminRentalService.checkoutRental(rentalId, userId)
+        );
+    }
+
+    // 반납 처리 (명세 57번) : 사진 필수 카테고리는 55번으로 반납 사진을 먼저 올린다
+    @Operation(summary = "반납 처리")
+    @PatchMapping("/{rental_id}/return")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<RentalReturnResponseDTO> returnRental(
+            @PathVariable("rental_id") Long rentalId,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_RETURNED,
+                adminRentalService.returnRental(rentalId, userId)
         );
     }
 

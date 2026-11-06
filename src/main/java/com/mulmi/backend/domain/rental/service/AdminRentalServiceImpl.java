@@ -21,6 +21,7 @@ import com.mulmi.backend.domain.equipment.entity.Category;
 import com.mulmi.backend.domain.equipment.enums.LoanPeriodType;
 import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalReturnResponseDTO;
 import com.mulmi.backend.domain.rental.enums.ApplicationType;
 import com.mulmi.backend.domain.semester.entity.Semester;
 import com.mulmi.backend.domain.semester.repository.SemesterRepository;
@@ -231,6 +232,45 @@ public class AdminRentalServiceImpl implements AdminRentalService {
                 rental.getStatus(),
                 rental.getActualPickupAt(),
                 rental.getExpectedReturnAt());
+    }
+
+    // 반납 처리 (명세 57번) : 격리 수준 기본값인 이유는 승인과 같음
+    @Override
+    @Transactional
+    public RentalReturnResponseDTO returnRental(Long rentalId, Long staffId) {
+        LocalDateTime now = LocalDateTime.now(KOREA);
+
+        // 1. 대여 행 잠금 + 대여 중일 때만 (연체도 DB 상태는 RENTING). 조기 반납 허용
+        Rental rental = rentalRepository.findWithLockById(rentalId)
+                .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_FOUND));
+        if (rental.getStatus() != RentalStatus.RENTING) {
+            throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
+        }
+
+        // 2. 반납 사진 : 수령 사진 필수 카테고리(노트북·태블릿)만 반납 때도 필수 (11-07 결정)
+        Category category = rental.getEquipmentModel().getCategory();
+        if (category.isPickupPhotoRequired()
+                && !rentalImageRepository.existsByRentalIdAndImageTypeAndImageSide(
+                        rentalId, RentalImageType.RETURN, RentalImageSide.FRONT)) {
+            throw new RentalException(RentalErrorCode.RETURN_IMAGE_REQUIRED);
+        }
+
+        // 3. 연체였는지 : 저장하지 않고 반납 시점에 계산한다
+        boolean wasOverdue = rental.getExpectedReturnAt() != null && now.isAfter(rental.getExpectedReturnAt());
+        // 연체 반납 시 블랙리스트 등록은 미정(명세 57) — 블랙리스트 담당 작업 후 협의
+
+        // 4. 기기는 항상 대여 가능으로 되돌린다
+        //    반납 때 고장을 발견해도 반납을 먼저 끝낸 뒤 기기 수정(41)으로 고장 처리한다 (11-07 결정)
+        rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+        rental.returnItem(userRepository.getReferenceById(staffId), now);
+
+        return new RentalReturnResponseDTO(
+                rental.getId(),
+                rental.getEquipmentItem().getId(),
+                rental.getStatus(),
+                rental.getEquipmentItem().getStatus(),
+                rental.getActualReturnAt(),
+                wasOverdue);
     }
 
     // 대여 사진 업로드 (명세 55번) : 1장(FRONT)만, 같은 종류는 교체

@@ -4,6 +4,7 @@ import com.mulmi.backend.domain.rental.dto.request.RentalRejectRequestDTO;
 import com.mulmi.backend.domain.rental.dto.response.AdminRentalPageResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalReturnResponseDTO;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +23,9 @@ public interface AdminRentalService {
 
     // 수령 처리 (명세 54번)
     RentalCheckoutResponseDTO checkoutRental(Long rentalId, Long staffId);
+
+    // 반납 처리 (명세 57번)
+    RentalReturnResponseDTO returnRental(Long rentalId, Long staffId);
 
     // 대여 사진 업로드 (명세 55번)
     RentalImageUploadResponseDTO uploadRentalImage(

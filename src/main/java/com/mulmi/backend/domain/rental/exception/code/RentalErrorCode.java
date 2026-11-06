@@ -27,7 +27,8 @@ public enum RentalErrorCode implements BaseErrorCode {
     DUPLICATE_RENTAL(HttpStatus.CONFLICT, "RENTAL409_4", "같은 카테고리에서 진행 중인 대여가 있습니다."),
     INVALID_RENTAL_STATUS(HttpStatus.CONFLICT, "RENTAL409_5", "현재 상태에서는 처리할 수 없는 대여입니다."),
     PICKUP_DEADLINE_PASSED(HttpStatus.CONFLICT, "RENTAL409_6", "수령 기한이 지난 대여입니다."),
-    PICKUP_IMAGE_REQUIRED(HttpStatus.CONFLICT, "RENTAL409_7", "수령 사진을 먼저 올려 주세요.");
+    PICKUP_IMAGE_REQUIRED(HttpStatus.CONFLICT, "RENTAL409_7", "수령 사진을 먼저 올려 주세요."),
+    RETURN_IMAGE_REQUIRED(HttpStatus.CONFLICT, "RENTAL409_8", "반납 사진을 먼저 올려 주세요.");
 
     private final HttpStatus status;
     private final String code;
