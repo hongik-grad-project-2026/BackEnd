@@ -1,6 +1,11 @@
 package com.mulmi.backend.domain.rental.service;
 
+import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
 import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
+import com.mulmi.backend.domain.rental.dto.response.AdminRentalPageResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.AdminRentalSummaryResponseDTO;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import com.mulmi.backend.domain.rental.dto.request.RentalRejectRequestDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalApproveResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalRejectResponseDTO;
@@ -18,6 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -54,6 +64,92 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         rental.approve(assistant, now);
 
         return new RentalApproveResponseDTO(rental.getId(), rental.getStatus(), rental.getReviewedAt());
+    }
+
+    // 관리자 대여 목록 (조회라 클래스의 readOnly 트랜잭션을 그대로 쓴다)
+    @Override
+    public AdminRentalPageResponseDTO getAdminRentals(List<RentalStatus> statuses, String keyword, int page, int size) {
+        LocalDateTime now = LocalDateTime.now(KOREA);
+
+        // 1. 상태 필터 나누기 : RENTING·OVERDUE는 "RENTING 행을 연체 여부로 나눈 것"이라 따로 처리한다
+        boolean allStatuses = statuses == null || statuses.isEmpty();
+        boolean wantRenting = !allStatuses && statuses.contains(RentalStatus.RENTING);
+        boolean wantOverdue = !allStatuses && statuses.contains(RentalStatus.OVERDUE);
+        Set<RentalStatus> plainStatuses = allStatuses ? EnumSet.noneOf(RentalStatus.class) : EnumSet.copyOf(statuses);
+        plainStatuses.removeAll(EnumSet.of(RentalStatus.RENTING, RentalStatus.OVERDUE));
+        if (plainStatuses.isEmpty()) {
+            // 빈 IN ()은 SQL 오류가 날 수 있어, DB에 저장되지 않는 OVERDUE를 넣어 "아무것도 안 걸리는" 조건으로 만든다
+            plainStatuses.add(RentalStatus.OVERDUE);
+        }
+
+        // 2. 한 페이지 조회 (정렬은 쿼리의 ORDER BY r.id DESC = 신청 최신순)
+        Page<AdminRentalSummaryResponseDTO> responsePage = rentalRepository.searchAdminRentals(
+                        allStatuses, plainStatuses, wantRenting, wantOverdue, now,
+                        normalizeKeyword(keyword), PageRequest.of(page, size))
+                .map(rental -> toAdminSummary(rental, now));
+
+        // 3. 탭 옆 숫자
+        return AdminRentalPageResponseDTO.of(responsePage, countByStatus(now));
+    }
+
+    // 상태별 대여 수 + "all" 합계 (대여가 없는 상태도 0, RENTING 중 연체는 OVERDUE로 옮긴다)
+    private Map<String, Long> countByStatus(LocalDateTime now) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        counts.put("all", 0L);
+        for (RentalStatus status : RentalStatus.values()) {
+            counts.put(status.name(), 0L);
+        }
+        long total = 0;
+        for (RentalRepository.StatusCount count : rentalRepository.countByStatus()) {
+            counts.put(count.getStatus().name(), count.getCount());
+            total += count.getCount();
+        }
+        long overdue = rentalRepository.countOverdue(now);
+        counts.put(RentalStatus.RENTING.name(), counts.get(RentalStatus.RENTING.name()) - overdue);
+        counts.put(RentalStatus.OVERDUE.name(), overdue);
+        counts.put("all", total);
+        return counts;
+    }
+
+    // 엔티티 → 목록 한 줄. 연관 엔티티는 fetch join으로 이미 들어와 있어 추가 쿼리가 없다
+    private AdminRentalSummaryResponseDTO toAdminSummary(Rental rental, LocalDateTime now) {
+        User user = rental.getUser();
+        EquipmentModel model = rental.getEquipmentModel();
+        return new AdminRentalSummaryResponseDTO(
+                rental.getId(),
+                user.getId(),
+                user.getName(),
+                user.getStudentId(),
+                user.getDepartment(),
+                model.getCategory().getName(),
+                model.getId(),
+                model.getName(),
+                rental.getEquipmentItem().getLabelCode(),
+                rental.getApplicationType(),
+                displayStatus(rental, now),
+                rental.getPurpose(),
+                rental.getExpectedPickupDate(),
+                rental.getExpectedReturnAt(),
+                rental.getCreatedAt()
+        );
+    }
+
+    // 화면에 보여줄 상태 : 연체는 저장하지 않고 계산한다 (RENTING + 반납 예정 시각 지남)
+    private RentalStatus displayStatus(Rental rental, LocalDateTime now) {
+        if (rental.getStatus() == RentalStatus.RENTING
+                && rental.getExpectedReturnAt() != null
+                && rental.getExpectedReturnAt().isBefore(now)) {
+            return RentalStatus.OVERDUE;
+        }
+        return rental.getStatus();
+    }
+
+    // 빈 검색어는 조건 없음(null)으로
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return keyword.trim();
     }
 
     // 대여 반려 (격리 수준 기본값인 이유는 승인과 같음)
