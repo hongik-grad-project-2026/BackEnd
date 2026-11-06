@@ -169,7 +169,7 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
         if (item.getDeletedAt() != null) {
             throw new EquipmentItemException(EquipmentItemErrorCode.ITEM_ALREADY_DISPOSED);
         }
-        if (item.getStatus() == EquipmentItemStatus.RESERVED || item.getStatus() == EquipmentItemStatus.RENTED) {
+        if (EquipmentItemStatus.IN_USE.contains(item.getStatus())) {
             throw new EquipmentItemException(EquipmentItemErrorCode.ITEM_IN_USE);
         }
 

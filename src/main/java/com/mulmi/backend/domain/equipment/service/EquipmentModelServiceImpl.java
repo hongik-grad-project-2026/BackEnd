@@ -344,7 +344,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
             labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId());
         }
         if (equipmentItemRepository.existsByEquipmentModelIdAndDeletedAtIsNullAndStatusIn(
-                modelId, List.of(EquipmentItemStatus.RESERVED, EquipmentItemStatus.RENTED))) {
+                modelId, EquipmentItemStatus.IN_USE)) {
             throw new EquipmentModelException(EquipmentModelErrorCode.MODEL_IN_USE);
         }
 
