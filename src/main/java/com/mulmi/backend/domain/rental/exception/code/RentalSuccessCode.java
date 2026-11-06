@@ -9,6 +9,13 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum RentalSuccessCode implements BaseSuccessCode {
 
+    // 메시지는 명세 52번 성공 응답
+    RENTAL_APPROVED(
+            HttpStatus.OK,
+            "RENTAL200_1",
+            "대여 신청을 승인했습니다."
+    ),
+
     // 메시지는 명세 46번 성공 응답
     RENTAL_CREATED(
             HttpStatus.CREATED,

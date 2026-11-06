@@ -71,4 +71,20 @@ public class Rental extends BaseEntity {
     // 교수 공통 계정의 실제 교수명 등
     @Column(name = "memo", columnDefinition = "TEXT")
     private String memo;
+
+    // 대여 신청 승인한 조교 (신청 시점에는 null)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by")
+    private User reviewedBy;
+
+    // 대여 신청 승인 시각
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    // 승인 : 상태 검사(PENDING_APPROVAL인지)는 서비스가 한다. 기기는 신청 때 이미 RESERVED라 그대로 둔다
+    public void approve(User assistant, LocalDateTime now) {
+        this.status = RentalStatus.READY_FOR_PICKUP;
+        this.reviewedBy = assistant;
+        this.reviewedAt = now;
+    }
 }

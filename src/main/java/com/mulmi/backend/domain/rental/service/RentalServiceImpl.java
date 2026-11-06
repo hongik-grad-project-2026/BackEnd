@@ -21,6 +21,7 @@ import com.mulmi.backend.domain.rental.repository.RentalRepository;
 import com.mulmi.backend.domain.semester.entity.Semester;
 import com.mulmi.backend.domain.semester.repository.SemesterRepository;
 import com.mulmi.backend.domain.user.entity.User;
+import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.UserException;
 import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
@@ -102,6 +103,10 @@ public class RentalServiceImpl implements RentalService {
         User user = userRepository.findWithLockById(userId)
                 .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
 
+        // 6-1. 계정 상태: 정지·탈퇴 계정은 토큰이 아직 유효해도 신청할 수 없다 (명세 46 처리 규칙 1)
+        //      잠금으로 얻은 user를 그대로 쓰므로 조회가 더 나가지 않는다
+        validateAccountStatus(user);
+
         // 7. 1인 1대: 같은 카테고리에 진행 중인 대여가 있으면 409
         if (rentalRepository.existsByUserIdAndEquipmentModelCategoryIdAndStatusIn(
                 userId, category.getId(), RentalStatus.ACTIVE)) {
@@ -137,5 +142,16 @@ public class RentalServiceImpl implements RentalService {
 
         return new RentalCreateResponseDTO(
                 rental.getId(), rental.getStatus(), rental.getApplicationType(), rental.getExpectedPickupDate());
+    }
+
+    // 정지·탈퇴 계정 거부 (이유를 구분해서 알린다)
+    // 승인(AdminRentalServiceImpl)에서도 같은 기준을 쓰므로 같은 패키지에서 부를 수 있게 static으로 둔다
+    static void validateAccountStatus(User user) {
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new RentalException(RentalErrorCode.ACCOUNT_SUSPENDED);
+        }
+        if (user.getStatus() == UserStatus.WITHDRAWN) {
+            throw new RentalException(RentalErrorCode.ACCOUNT_WITHDRAWN);
+        }
     }
 }
