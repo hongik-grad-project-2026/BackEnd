@@ -92,6 +92,24 @@ public class Rental extends BaseEntity {
     @Column(name = "reject_reason_detail", length = 500)
     private String rejectReasonDetail;
 
+    // 실제로 기기를 가져간 시각 (수령 처리 때 기록)
+    @Column(name = "actual_pickup_at")
+    private LocalDateTime actualPickupAt;
+
+    // 수령 처리한 근로생·조교
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pickup_checked_by")
+    private User pickupCheckedBy;
+
+    // 수령 : 상태·기한·사진 검사와 기기 RENTED 변경, 단기 반납 예정 계산은 서비스가 한다 (A안)
+    // expectedReturnAt : 단기는 이번에 계산한 값, 장기는 신청 때 정한 값을 그대로 넘긴다
+    public void pickUp(User staff, LocalDateTime now, LocalDateTime expectedReturnAt) {
+        this.status = RentalStatus.RENTING;
+        this.pickupCheckedBy = staff;
+        this.actualPickupAt = now;
+        this.expectedReturnAt = expectedReturnAt;
+    }
+
     // 승인 : 상태 검사(PENDING_APPROVAL인지)는 서비스가 한다. 기기는 신청 때 이미 RESERVED라 그대로 둔다
     public void approve(User assistant, LocalDateTime now) {
         this.status = RentalStatus.READY_FOR_PICKUP;

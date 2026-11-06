@@ -2,6 +2,7 @@ package com.mulmi.backend.domain.rental.service;
 
 import com.mulmi.backend.domain.rental.dto.request.RentalRejectRequestDTO;
 import com.mulmi.backend.domain.rental.dto.response.AdminRentalPageResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
@@ -18,6 +19,9 @@ public interface AdminRentalService {
 
     // 대여 승인 (명세 52번)
     RentalApproveResponseDTO approveRental(Long rentalId, Long assistantId);
+
+    // 수령 처리 (명세 54번)
+    RentalCheckoutResponseDTO checkoutRental(Long rentalId, Long staffId);
 
     // 대여 사진 업로드 (명세 55번)
     RentalImageUploadResponseDTO uploadRentalImage(

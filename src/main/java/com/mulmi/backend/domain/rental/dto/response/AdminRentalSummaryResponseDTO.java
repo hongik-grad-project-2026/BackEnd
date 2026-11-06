@@ -23,6 +23,7 @@ public record AdminRentalSummaryResponseDTO(
         String purpose,
         LocalDate expectedPickupDate,
         LocalDateTime expectedReturnAt,
+        LocalDateTime actualPickupAt,   // 대여현황 화면의 "수령일" (54번에서 기록)
         LocalDateTime createdAt
 ) {
 }

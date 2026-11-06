@@ -17,7 +17,13 @@ import com.mulmi.backend.domain.rental.exception.code.RentalErrorCode;
 import com.mulmi.backend.domain.rental.repository.RentalRepository;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.repository.UserRepository;
+import com.mulmi.backend.domain.equipment.entity.Category;
+import com.mulmi.backend.domain.equipment.enums.LoanPeriodType;
+import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
+import com.mulmi.backend.domain.rental.enums.ApplicationType;
+import com.mulmi.backend.domain.semester.entity.Semester;
+import com.mulmi.backend.domain.semester.repository.SemesterRepository;
 import com.mulmi.backend.domain.rental.entity.RentalImage;
 import com.mulmi.backend.domain.rental.enums.RentalImageSide;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
@@ -31,6 +37,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.EnumSet;
@@ -47,6 +54,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
 
     private final RentalRepository rentalRepository;
     private final RentalImageRepository rentalImageRepository;
+    private final SemesterRepository semesterRepository;
     private final UserRepository userRepository;
     private final S3StorageService s3StorageService;
 
@@ -145,6 +153,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
                 rental.getPurpose(),
                 rental.getExpectedPickupDate(),
                 rental.getExpectedReturnAt(),
+                rental.getActualPickupAt(),
                 rental.getCreatedAt()
         );
     }
@@ -165,6 +174,63 @@ public class AdminRentalServiceImpl implements AdminRentalService {
             return null;
         }
         return keyword.trim();
+    }
+
+    // 수령 처리 (명세 54번) : 격리 수준 기본값인 이유는 승인과 같음 (첫 쿼리가 잠금 조회)
+    @Override
+    @Transactional
+    public RentalCheckoutResponseDTO checkoutRental(Long rentalId, Long staffId) {
+        LocalDateTime now = LocalDateTime.now(KOREA);
+
+        // 1. 대여 행 잠금 + 수령 대기일 때만
+        Rental rental = rentalRepository.findWithLockById(rentalId)
+                .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_FOUND));
+        if (rental.getStatus() != RentalStatus.READY_FOR_PICKUP) {
+            throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
+        }
+
+        // 2. 수령 기한 (11-03 규칙, 11-07 결정) : 지나면 노쇼라 수령할 수 없다. 일찍 오는 것은 허용
+        //    사전신청 : 수령 주간 마지막 날 20:00 / 상시 : 수령 희망일 20:00
+        Semester semester = rental.getSemester();
+        LocalDateTime pickupDeadline = rental.getApplicationType() == ApplicationType.REGULAR
+                ? semester.pickupDeadline()
+                : Semester.closingAt(rental.getExpectedPickupDate());
+        if (now.isAfter(pickupDeadline)) {
+            throw new RentalException(RentalErrorCode.PICKUP_DEADLINE_PASSED);
+        }
+
+        // 3. 수령 사진 : 사진 필수 카테고리(노트북·태블릿)는 55번으로 올린 사진이 있어야 한다
+        Category category = rental.getEquipmentModel().getCategory();
+        if (category.isPickupPhotoRequired()
+                && !rentalImageRepository.existsByRentalIdAndImageTypeAndImageSide(
+                        rentalId, RentalImageType.PICKUP, RentalImageSide.FRONT)) {
+            throw new RentalException(RentalErrorCode.PICKUP_IMAGE_REQUIRED);
+        }
+
+        // 4. 반납 예정 : 장기는 신청 때 정한 값 그대로, 단기는 (수령일 + 대여 일수) 20:00
+        //    단, 이 학기의 최종 반납 마감(다음 학기 개강 전날 20:00)을 넘지 않게 자른다 (11-05 결정)
+        LocalDateTime expectedReturnAt = rental.getExpectedReturnAt();
+        if (category.getLoanPeriodType() == LoanPeriodType.FIXED_DAYS) {
+            LocalDate nextSemesterStart = semesterRepository
+                    .findFirstByStartDateGreaterThanOrderByStartDateAsc(semester.getStartDate())
+                    .map(Semester::getStartDate)
+                    .orElseGet(semester::defaultNextStartDate);
+            LocalDateTime dueByDays = Semester.closingAt(now.toLocalDate().plusDays(category.getLoanDurationDays()));
+            LocalDateTime semesterDue = Semester.returnDueAt(nextSemesterStart);
+            expectedReturnAt = dueByDays.isAfter(semesterDue) ? semesterDue : dueByDays;
+        }
+
+        // 5. 기기 대여 중 + 수령 기록 (둘 다 변경 감지로 UPDATE)
+        rental.getEquipmentItem().changeStatus(EquipmentItemStatus.RENTED);
+        rental.pickUp(userRepository.getReferenceById(staffId), now, expectedReturnAt);
+
+        return new RentalCheckoutResponseDTO(
+                rental.getId(),
+                rental.getEquipmentItem().getId(),
+                rental.getEquipmentItem().getLabelCode(),
+                rental.getStatus(),
+                rental.getActualPickupAt(),
+                rental.getExpectedReturnAt());
     }
 
     // 대여 사진 업로드 (명세 55번) : 1장(FRONT)만, 같은 종류는 교체

@@ -85,6 +85,11 @@ public class Semester extends BaseEntity {
         return pickupStart().toLocalDate().plusDays(PICKUP_DAYS - 1).atTime(CLOSING_TIME);
     }
 
+    // 그날의 운영 종료 시각(20:00) : 상시 수령 마감(희망일 20:00), 단기 반납 예정(수령일+N일 20:00)에 쓴다
+    public static LocalDateTime closingAt(LocalDate date) {
+        return date.atTime(CLOSING_TIME);
+    }
+
     // 이 학기 대여의 최종 반납 마감: 다음 학기 개강 전날 20:00 (방학 포함, 11-05 확정)
     // 장기 대여의 반납일이고, 단기 대여(수령일+N일)도 이 시각을 넘을 수 없다
     public static LocalDateTime returnDueAt(LocalDate nextSemesterStart) {
