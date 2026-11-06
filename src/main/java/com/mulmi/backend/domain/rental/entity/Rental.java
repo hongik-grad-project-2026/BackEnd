@@ -3,6 +3,7 @@ package com.mulmi.backend.domain.rental.entity;
 import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
 import com.mulmi.backend.domain.rental.enums.ApplicationType;
+import com.mulmi.backend.domain.rental.enums.RejectReasonType;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import com.mulmi.backend.domain.semester.entity.Semester;
 import com.mulmi.backend.domain.user.entity.User;
@@ -81,10 +82,29 @@ public class Rental extends BaseEntity {
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
+    // 반려 사유 (반려됐을 때만 값이 있다)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reject_reason_type", length = 30)
+    private RejectReasonType rejectReasonType;
+
+    // 반려 상세 사유 (기타일 때만 값이 있다)
+    @Column(name = "reject_reason_detail", length = 500)
+    private String rejectReasonDetail;
+
     // 승인 : 상태 검사(PENDING_APPROVAL인지)는 서비스가 한다. 기기는 신청 때 이미 RESERVED라 그대로 둔다
     public void approve(User assistant, LocalDateTime now) {
         this.status = RentalStatus.READY_FOR_PICKUP;
         this.reviewedBy = assistant;
         this.reviewedAt = now;
+    }
+
+    // 반려 : 상태·사유 검사와 기기 재고 복귀는 서비스가 한다 (승인과 같은 A안)
+    public void reject(User assistant, LocalDateTime now, RejectReasonType reasonType, String reasonDetail) {
+        this.status = RentalStatus.REJECTED;
+        this.reviewedBy = assistant;
+        this.reviewedAt = now;
+        this.rejectReasonType = reasonType;
+        this.rejectReasonDetail = reasonDetail;
     }
 }

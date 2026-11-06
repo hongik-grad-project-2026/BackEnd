@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 public enum RentalErrorCode implements BaseErrorCode {
 
     INVALID_PICKUP_DATE(HttpStatus.BAD_REQUEST, "RENTAL400_1", "선택할 수 없는 수령희망일입니다."),
+    INVALID_REJECT_REASON(HttpStatus.BAD_REQUEST, "RENTAL400_2", "기타 사유로 반려할 때는 상세 사유가 필요합니다."),
 
     BLACKLISTED_USER(HttpStatus.FORBIDDEN, "RENTAL403_1", "대여가 제한된 사용자입니다."),
     // 신청(46)은 본인 계정, 승인(52)은 신청자 계정을 검사한다 (11-06 결정: 이유를 구분해서 알린다)

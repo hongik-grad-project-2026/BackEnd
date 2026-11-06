@@ -68,6 +68,10 @@ public interface EquipmentItemRepository extends JpaRepository<EquipmentItem, Lo
 
     Optional<EquipmentItem> findByIdAndDeletedAtIsNull(Long id);
 
+    // 기기 수정: 대여 신청(기기 잠금 후 RESERVED)과 동시에 실행돼도 최신 상태를 보고 판단하도록 잠그며 조회
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<EquipmentItem> findWithLockByIdAndDeletedAtIsNull(Long id);
+
     // 모델에 살아 있는 기기가 있는지 (모델 카테고리·접두사 변경 제한)
     boolean existsByEquipmentModelIdAndDeletedAtIsNull(Long modelId);
 

@@ -119,10 +119,16 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public EquipmentItemUpdateResponseDTO updateEquipmentItem(Long itemId, EquipmentItemUpdateRequestDTO dto) {
-        // 1. 상태 검사 + 폐기되지 않은 기기 조회
+        // 1. 상태 검사 + 폐기되지 않은 기기를 잠그며 조회
         validateManualStatus(dto.status());
-        EquipmentItem item = equipmentItemRepository.findByIdAndDeletedAtIsNull(itemId)
+        EquipmentItem item = equipmentItemRepository.findWithLockByIdAndDeletedAtIsNull(itemId)
                 .orElseThrow(() -> new EquipmentItemException(EquipmentItemErrorCode.ITEM_NOT_FOUND));
+
+        // 1-1. 대여 흐름 중(예약·대여 중)인 기기는 수정 불가 (11-07 결정)
+        //      중간에 고장 나도 반려·반납으로 대여 기록을 끝낸 뒤 고장으로 바꾼다
+        if (EquipmentItemStatus.IN_USE.contains(item.getStatus())) {
+            throw new EquipmentItemException(EquipmentItemErrorCode.ITEM_IN_RENTAL);
+        }
 
         // 2. 라벨 번호가 바뀔 때만 : 같은 번호면 자기 자신과 겹쳐 409가 나므로 건너뛴다
         Integer newNumber = dto.labelNumber();
