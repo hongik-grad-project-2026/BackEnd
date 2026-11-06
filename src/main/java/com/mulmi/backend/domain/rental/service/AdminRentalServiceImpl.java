@@ -17,9 +17,19 @@ import com.mulmi.backend.domain.rental.exception.code.RentalErrorCode;
 import com.mulmi.backend.domain.rental.repository.RentalRepository;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.repository.UserRepository;
+import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
+import com.mulmi.backend.domain.rental.entity.RentalImage;
+import com.mulmi.backend.domain.rental.enums.RentalImageSide;
+import com.mulmi.backend.domain.rental.enums.RentalImageType;
+import com.mulmi.backend.domain.rental.repository.RentalImageRepository;
+import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -29,15 +39,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminRentalServiceImpl implements AdminRentalService {
 
     private final RentalRepository rentalRepository;
+    private final RentalImageRepository rentalImageRepository;
     private final UserRepository userRepository;
+    private final S3StorageService s3StorageService;
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
+    private static final long MAX_RENTAL_IMAGE_SIZE = 10 * 1024 * 1024;
+    private static final Set<String> RENTAL_IMAGE_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
 
     // 대여 승인
     // 격리 수준은 기본값 : 첫 쿼리가 잠금 조회라서, 잠금이 풀린 뒤의 최신 상태를 읽는다 (46번처럼 잠금 전에 일반 조회가 없음)
@@ -150,6 +165,91 @@ public class AdminRentalServiceImpl implements AdminRentalService {
             return null;
         }
         return keyword.trim();
+    }
+
+    // 대여 사진 업로드 (명세 55번) : 1장(FRONT)만, 같은 종류는 교체
+    @Override
+    @Transactional
+    public RentalImageUploadResponseDTO uploadRentalImage(
+            Long rentalId, Long uploaderId, RentalImageType imageType, MultipartFile image) {
+        // 1. 파일 검사 : DB를 보지 않는 검사라 잠금보다 먼저
+        validateRentalImage(image);
+
+        // 2. 대여 행 잠금 + 상태 검사 : 수령 사진은 수령 대기, 반납 사진은 대여 중(연체 포함)일 때만
+        //    수령·반납이 끝나면 상태가 바뀌어 사진을 더 이상 바꿀 수 없다 (ERD 사진 삭제 정책)
+        Rental rental = rentalRepository.findWithLockById(rentalId)
+                .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_FOUND));
+        RentalStatus required = imageType == RentalImageType.PICKUP
+                ? RentalStatus.READY_FOR_PICKUP
+                : RentalStatus.RENTING;
+        if (rental.getStatus() != required) {
+            throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
+        }
+
+        // 3. S3 업로드
+        String objectKey = s3StorageService.upload(image, "rental-images/" + rentalId);
+
+        // 4. 같은 종류 사진이 있으면 교체, 없으면 새로 저장
+        User uploader = userRepository.getReferenceById(uploaderId);
+        RentalImage rentalImage = rentalImageRepository
+                .findByRentalIdAndImageTypeAndImageSide(rentalId, imageType, RentalImageSide.FRONT)
+                .orElse(null);
+        String previousObjectKey = rentalImage == null ? null : rentalImage.getImageUrl();
+        if (rentalImage == null) {
+            rentalImage = RentalImage.builder()
+                    .rental(rental)
+                    .imageType(imageType)
+                    .imageSide(RentalImageSide.FRONT)
+                    .imageUrl(objectKey)
+                    .uploadedBy(uploader)
+                    .build();
+        } else {
+            rentalImage.replace(objectKey, uploader);
+        }
+        // flush로 지금 INSERT/UPDATE를 실행해 uploadedAt(updatedAt)을 채운다
+        rentalImage = rentalImageRepository.saveAndFlush(rentalImage);
+
+        // 5. S3는 롤백되지 않으므로 파일 정리는 트랜잭션 결과를 보고 한다 (모델 이미지 36번과 같은 방식)
+        //    커밋 → 교체된 옛 파일 삭제 / 롤백 → 방금 올린 파일 삭제 / 결과 불명 → 둘 다 보존
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_COMMITTED) {
+                    deleteImageQuietly(previousObjectKey);
+                } else if (status == STATUS_ROLLED_BACK) {
+                    deleteImageQuietly(objectKey);
+                }
+            }
+        });
+
+        return new RentalImageUploadResponseDTO(
+                rentalImage.getId(), rentalId, imageType,
+                s3StorageService.createDownloadUrl(objectKey), rentalImage.getUpdatedAt());
+    }
+
+    // 대여 사진 검증 : JPG/PNG/WEBP, 10MB 이하 (11-07 결정 : 휴대폰 사진을 고려해 모델 이미지의 5MB보다 크게)
+    private void validateRentalImage(MultipartFile image) {
+        // Set.of는 contains(null)에서 NPE를 던지므로 null을 먼저 거른다 (36번에서 겪은 문제)
+        if (image == null || image.isEmpty()
+                || image.getContentType() == null
+                || !RENTAL_IMAGE_CONTENT_TYPES.contains(image.getContentType())) {
+            throw new RentalException(RentalErrorCode.INVALID_RENTAL_IMAGE);
+        }
+        if (image.getSize() > MAX_RENTAL_IMAGE_SIZE) {
+            throw new RentalException(RentalErrorCode.RENTAL_IMAGE_TOO_LARGE);
+        }
+    }
+
+    // S3 사진 삭제 (실패해도 요청 결과에는 영향 없음, 로그만 남김)
+    private void deleteImageQuietly(String objectKey) {
+        if (objectKey == null || objectKey.isBlank()) {
+            return;
+        }
+        try {
+            s3StorageService.delete(objectKey);
+        } catch (RuntimeException exception) {
+            log.warn("대여 사진 삭제 실패: {}", objectKey, exception);
+        }
     }
 
     // 대여 반려 (격리 수준 기본값인 이유는 승인과 같음)

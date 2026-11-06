@@ -14,7 +14,15 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
+import com.mulmi.backend.domain.rental.enums.RentalImageType;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -64,6 +72,23 @@ public class AdminRentalController {
         return ApiResponse.onSuccess(
                 RentalSuccessCode.RENTAL_APPROVED,
                 adminRentalService.approveRental(rentalId, userId)
+        );
+    }
+
+    // 대여 사진 업로드 (명세 55번) : 수령·반납 처리 전에 기기 사진 1장
+    @Operation(summary = "대여 사진 업로드")
+    @PostMapping(value = "/{rental_id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<RentalImageUploadResponseDTO> uploadRentalImage(
+            @PathVariable("rental_id") Long rentalId,
+            @AuthenticationPrincipal Long userId,
+            @RequestParam("imageType") RentalImageType imageType,
+            @RequestPart("image") MultipartFile image
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_IMAGE_UPLOADED,
+                adminRentalService.uploadRentalImage(rentalId, userId, imageType, image)
         );
     }
 

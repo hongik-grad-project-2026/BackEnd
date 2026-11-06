@@ -30,6 +30,13 @@ public enum RentalSuccessCode implements BaseSuccessCode {
             "대여 신청을 반려했습니다."
     ),
 
+    // 메시지는 명세 55번 성공 응답
+    RENTAL_IMAGE_UPLOADED(
+            HttpStatus.CREATED,
+            "RENTAL201_2",
+            "사진을 업로드했습니다."
+    ),
+
     // 메시지는 명세 46번 성공 응답
     RENTAL_CREATED(
             HttpStatus.CREATED,
