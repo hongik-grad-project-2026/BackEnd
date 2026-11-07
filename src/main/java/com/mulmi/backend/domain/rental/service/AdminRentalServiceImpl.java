@@ -319,6 +319,9 @@ public class AdminRentalServiceImpl implements AdminRentalService {
             throw new RentalException(RentalErrorCode.PICKUP_DEADLINE_PASSED);
         }
 
+        // 2-1. 신청자 계정 상태 : 승인 뒤 수령 전에 정지·탈퇴됐을 수 있다 (승인 52와 같은 검사)
+        RentalServiceImpl.validateAccountStatus(rental.getUser());
+
         // 3. 수령 사진 : 사진 필수 카테고리(노트북·태블릿)는 55번으로 올린 사진이 있어야 한다
         Category category = rental.getEquipmentModel().getCategory();
         if (category.isPickupPhotoRequired()

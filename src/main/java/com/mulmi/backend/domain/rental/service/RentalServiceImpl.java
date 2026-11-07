@@ -251,11 +251,19 @@ public class RentalServiceImpl implements RentalService {
             throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
         }
 
-        // 3. 신청 때 예약한 기기를 재고로 되돌린다 (반려 53과 같음 — 두 상태 모두 기기는 RESERVED)
+        // 3. 수령 대기인데 수령 기한이 지났으면 이미 노쇼다 → 취소로 바꿔 노쇼 기록을 피할 수 없게 막는다
+        //    (기한 20:00 ~ 스케줄러 20:01 사이, 또는 서버가 꺼져 스케줄러가 못 돈 날에 생길 수 있다. 승인·수령과 같은 기한)
+        //    기한이 지난 승인 대기는 어차피 자동 취소될 신청이라 학생 취소를 그대로 허용한다
+        LocalDateTime now = LocalDateTime.now(KOREA);
+        if (rental.getStatus() == RentalStatus.READY_FOR_PICKUP && now.isAfter(rental.getPickupDeadline())) {
+            throw new RentalException(RentalErrorCode.PICKUP_DEADLINE_PASSED);
+        }
+
+        // 4. 신청 때 예약한 기기를 재고로 되돌린다 (반려 53과 같음 — 두 상태 모두 기기는 RESERVED)
         rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
 
-        // 4. 취소 기록
-        rental.cancel(dto.cancelReason(), LocalDateTime.now(KOREA));
+        // 5. 취소 기록
+        rental.cancel(dto.cancelReason(), now);
 
         return new RentalCancelResponseDTO(
                 rental.getId(), rental.getStatus(), rental.getCancelReason(), rental.getCanceledAt());
