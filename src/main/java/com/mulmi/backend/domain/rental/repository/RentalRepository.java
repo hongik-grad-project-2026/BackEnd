@@ -161,6 +161,15 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
             """)
     Optional<Rental> findAdminRental(@Param("rentalId") Long rentalId);
 
+    // 노쇼 후보 (58 스케줄러) : 수령 대기 전부 + 학기 (사전신청의 수령 기한 계산에 학기가 필요)
+    //  기한은 신청 방식마다 계산이 달라 SQL로 거르지 않고 Rental.getPickupDeadline()으로 거른다 (수령 대기는 많지 않다)
+    @Query("""
+            SELECT r FROM Rental r
+            LEFT JOIN FETCH r.semester s
+            WHERE r.status = com.mulmi.backend.domain.rental.enums.RentalStatus.READY_FOR_PICKUP
+            """)
+    List<Rental> findReadyForPickupWithSemester();
+
     // 내 대여의 상태별 수 (47 탭 옆 숫자)
     @Query("SELECT r.status AS status, COUNT(r) AS count FROM Rental r WHERE r.user.id = :userId GROUP BY r.status")
     List<StatusCount> countByStatusAndUserId(@Param("userId") Long userId);

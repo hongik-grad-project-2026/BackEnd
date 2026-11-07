@@ -216,6 +216,37 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         return new RentalImageListResponseDTO(rentalId, images);
     }
 
+    // 노쇼 후보 id (58 스케줄러가 부른다) : 수령 대기 중 수령 기한이 지난 것
+    @Override
+    public List<Long> findNoShowCandidateIds(LocalDateTime now) {
+        return rentalRepository.findReadyForPickupWithSemester().stream()
+                .filter(rental -> now.isAfter(rental.getPickupDeadline()))
+                .map(Rental::getId)
+                .toList();
+    }
+
+    // 노쇼 한 건 (58) : 건마다 트랜잭션을 따로 둬서 한 건이 실패해도 나머지는 처리된다
+    //  격리 수준 기본값 : 첫 쿼리가 잠금 조회 (52 승인과 같은 이유)
+    //  반환 : 노쇼로 바꿨으면 true, 그 사이 수령·취소돼서 건너뛰었으면 false
+    @Override
+    @Transactional
+    public boolean markNoShow(Long rentalId, LocalDateTime now) {
+        // 1. 대여 행 잠금 : 후보를 고른 뒤 잠그기 전에 수령(54)·취소(49)가 끝났을 수 있다
+        Rental rental = rentalRepository.findWithLockById(rentalId).orElse(null);
+
+        // 2. 잠근 뒤 다시 확인 : 아직 수령 대기이고 기한이 지났을 때만
+        if (rental == null
+                || rental.getStatus() != RentalStatus.READY_FOR_PICKUP
+                || !now.isAfter(rental.getPickupDeadline())) {
+            return false;
+        }
+
+        // 3. 신청 때 예약한 기기를 재고로 되돌리고 노쇼 기록 (반려·취소와 같음)
+        rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+        rental.markNoShow();
+        return true;
+    }
+
     // 처리자 이름 (아직 처리 전이면 null)
     private String nameOf(User user) {
         return user == null ? null : user.getName();
@@ -253,13 +284,9 @@ public class AdminRentalServiceImpl implements AdminRentalService {
             throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
         }
 
-        // 2. 수령 기한 (11-03 규칙, 11-07 결정) : 지나면 노쇼라 수령할 수 없다. 일찍 오는 것은 허용
-        //    사전신청 : 수령 주간 마지막 날 20:00 / 상시 : 수령 희망일 20:00
+        // 2. 수령 기한 : 지나면 노쇼라 수령할 수 없다. 일찍 오는 것은 허용 (기한 계산은 Rental, 58 노쇼와 공유)
         Semester semester = rental.getSemester();
-        LocalDateTime pickupDeadline = rental.getApplicationType() == ApplicationType.REGULAR
-                ? semester.pickupDeadline()
-                : Semester.closingAt(rental.getExpectedPickupDate());
-        if (now.isAfter(pickupDeadline)) {
+        if (now.isAfter(rental.getPickupDeadline())) {
             throw new RentalException(RentalErrorCode.PICKUP_DEADLINE_PASSED);
         }
 

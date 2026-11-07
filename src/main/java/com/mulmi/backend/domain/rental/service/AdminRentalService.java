@@ -11,6 +11,7 @@ import com.mulmi.backend.domain.rental.enums.RentalImageType;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import com.mulmi.backend.domain.rental.dto.response.RentalApproveResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalRejectResponseDTO;
@@ -22,6 +23,11 @@ public interface AdminRentalService {
 
     // 관리자 대여 상세 (명세 51번)
     AdminRentalDetailResponseDTO getAdminRental(Long rentalId);
+
+    // 노쇼 (명세 58번, 조교 API 없이 스케줄러만) : 후보 찾기 + 한 건씩 처리
+    List<Long> findNoShowCandidateIds(LocalDateTime now);
+
+    boolean markNoShow(Long rentalId, LocalDateTime now);
 
     // 사진 조회 (명세 56번) : imageType이 null이면 전체
     RentalImageListResponseDTO getRentalImages(Long rentalId, RentalImageType imageType);

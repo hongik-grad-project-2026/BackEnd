@@ -159,6 +159,19 @@ public class Rental extends BaseEntity {
         this.canceledAt = now;
     }
 
+    // 노쇼 : 수령 기한이 지난 수령 대기 (스케줄러가 처리, 명세 58 회의 결정). 기기 복귀는 서비스가 한다
+    public void markNoShow() {
+        this.status = RentalStatus.NO_SHOW;
+    }
+
+    // 수령 기한 (11-03 규칙, 11-07 결정) : 지나면 수령할 수 없고(54) 노쇼가 된다(58) — 두 곳이 같은 기준을 쓴다
+    //  사전신청 : 수령 주간 마지막 날 20:00 / 상시 : 수령 희망일 20:00
+    public LocalDateTime getPickupDeadline() {
+        return applicationType == ApplicationType.REGULAR
+                ? semester.pickupDeadline()
+                : Semester.closingAt(expectedPickupDate);
+    }
+
     // 화면에 보여줄 상태 : 연체는 저장하지 않고 계산한다 (RENTING + 반납 예정 시각 지남, 11-07 결정)
     // DB의 status는 그대로 RENTING이다 — 목록·상세(47·48·50·51)가 이 값을 응답에 쓴다
     public RentalStatus getDisplayStatus(LocalDateTime now) {
