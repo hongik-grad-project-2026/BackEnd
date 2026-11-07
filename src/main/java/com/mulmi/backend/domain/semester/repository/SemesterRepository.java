@@ -13,4 +13,7 @@ public interface SemesterRepository extends JpaRepository<Semester, Long> {
 
     // 다음 학기: 개강일이 기준일 이후인 학기 중 가장 이른 것 (반납 마감 계산용)
     Optional<Semester> findFirstByStartDateGreaterThanOrderByStartDateAsc(LocalDate date);
+
+    // 이전 학기: 개강일이 기준일보다 앞선 학기 중 가장 최근 (학기 조회용, 기준일 = 지금 학기 개강일)
+    Optional<Semester> findFirstByStartDateLessThanOrderByStartDateDesc(LocalDate date);
 }

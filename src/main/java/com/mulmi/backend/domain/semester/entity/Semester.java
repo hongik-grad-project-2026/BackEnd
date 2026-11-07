@@ -32,24 +32,31 @@ public class Semester extends BaseEntity {
     @Column(name = "name", nullable = false, unique = true, length = 50)
     private String name;
 
-    // 개강일 = 사전신청 시작일
+    // 개강일 = 사전신청 시작일 (1학기 3/1, 2학기 9/1 고정)
+    // 종강일은 두지 않는다 : 대여는 방학까지 이어지고 끝은 다음 학기 개강 전날 20:00이라 쓰는 곳이 없다
     @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
-    // 종강일 (화면 표시용 — 대여는 방학까지 이어지므로 반납 계산에는 쓰지 않는다)
-    @Column(name = "end_date", nullable = false)
-    private LocalDate endDate;
+    // 학년도·학기 : 개강일이 3/1, 9/1 고정이라 개강 월로 정해진다
+    public int academicYear() {
+        return startDate.getYear();
+    }
+
+    public int term() {
+        return startDate.getMonthValue() <= 6 ? 1 : 2;
+    }
 
     // 경계는 모두 [이상, 미만) — 23:59:59.999 같은 끝값을 다루지 않기 위해
-    private LocalDateTime preApplyStart() {
+    // public : 학기 조회(명세 60) 응답이 이 값을 그대로 내려준다
+    public LocalDateTime preApplyStart() {
         return startDate.atStartOfDay();
     }
 
-    private LocalDateTime pickupStart() {
+    public LocalDateTime pickupStart() {
         return startDate.plusDays(PRE_APPLY_DAYS).atStartOfDay();
     }
 
-    private LocalDateTime onDemandStart() {
+    public LocalDateTime onDemandStart() {
         return startDate.plusDays(PRE_APPLY_DAYS + PICKUP_DAYS).atStartOfDay();
     }
 
