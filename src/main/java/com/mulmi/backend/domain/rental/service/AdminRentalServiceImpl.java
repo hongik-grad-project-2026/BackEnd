@@ -13,6 +13,7 @@ import com.mulmi.backend.domain.rental.dto.request.RentalRejectRequestDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalApproveResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalRejectResponseDTO;
 import com.mulmi.backend.domain.rental.entity.Rental;
+import com.mulmi.backend.domain.rental.enums.CancelReasonType;
 import com.mulmi.backend.domain.rental.enums.RejectReasonType;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import com.mulmi.backend.domain.rental.exception.RentalException;
@@ -79,14 +80,20 @@ public class AdminRentalServiceImpl implements AdminRentalService {
             throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
         }
 
-        // 3. 신청자 계정 상태 : 신청 뒤에 정지·탈퇴됐을 수 있다 (명세 52 처리 규칙 2)
+        // 3. 수령 기한 : 지났으면 승인해도 수령(54)이 막히고 그날 20:01에 노쇼가 된다 → 승인을 막는다
+        //    조교가 늦게 승인한 탓에 학생 기록에 노쇼가 남지 않게 (기한 지난 승인 대기는 스케줄러가 자동 취소)
+        LocalDateTime now = LocalDateTime.now(KOREA);
+        if (now.isAfter(rental.getPickupDeadline())) {
+            throw new RentalException(RentalErrorCode.PICKUP_DEADLINE_PASSED);
+        }
+
+        // 4. 신청자 계정 상태 : 신청 뒤에 정지·탈퇴됐을 수 있다 (명세 52 처리 규칙 2)
         RentalServiceImpl.validateAccountStatus(rental.getUser());
 
-        // 4. 블랙리스트 : 신청(46)과 같이 블랙리스트 담당 작업 후 추가
+        // 5. 블랙리스트 : 신청(46)과 같이 블랙리스트 담당 작업 후 추가
 
-        // 5. 승인 : 조교는 FK 값만 필요하므로 조회 없이 참조만 만든다
+        // 6. 승인 : 조교는 FK 값만 필요하므로 조회 없이 참조만 만든다
         User assistant = userRepository.getReferenceById(assistantId);
-        LocalDateTime now = LocalDateTime.now(KOREA);
         rental.approve(assistant, now);
 
         return new RentalApproveResponseDTO(rental.getId(), rental.getStatus(), rental.getReviewedAt());
@@ -218,8 +225,8 @@ public class AdminRentalServiceImpl implements AdminRentalService {
 
     // 노쇼 후보 id (58 스케줄러가 부른다) : 수령 대기 중 수령 기한이 지난 것
     @Override
-    public List<Long> findNoShowCandidateIds(LocalDateTime now) {
-        return rentalRepository.findReadyForPickupWithSemester().stream()
+    public List<Long> findPickupExpiredIds(RentalStatus status, LocalDateTime now) {
+        return rentalRepository.findWithSemesterByStatus(status).stream()
                 .filter(rental -> now.isAfter(rental.getPickupDeadline()))
                 .map(Rental::getId)
                 .toList();
@@ -244,6 +251,26 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 3. 신청 때 예약한 기기를 재고로 되돌리고 노쇼 기록 (반려·취소와 같음)
         rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
         rental.markNoShow();
+        return true;
+    }
+
+    // 기한 지난 승인 대기 자동 취소 (58 스케줄러, 11-07 결정) : 조교가 수령 기한까지 승인하지 않은 신청
+    //  승인(52)은 기한이 지나면 막히므로 그대로 두면 영원히 승인 대기로 남고 기기도 예약된 채 묶인다
+    //  학생에게는 취소 사유 "승인 지연"으로 보인다. 노쇼와 같은 순서 : 잠금 → 다시 확인 → 처리
+    @Override
+    @Transactional
+    public boolean cancelExpiredApplication(Long rentalId, LocalDateTime now) {
+        Rental rental = rentalRepository.findWithLockById(rentalId).orElse(null);
+
+        // 잠근 뒤 다시 확인 : 그 사이 학생 취소(49)·조교 반려(53)가 끝났으면 건너뛴다
+        if (rental == null
+                || rental.getStatus() != RentalStatus.PENDING_APPROVAL
+                || !now.isAfter(rental.getPickupDeadline())) {
+            return false;
+        }
+
+        rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+        rental.cancel(CancelReasonType.APPROVAL_DELAYED, now);
         return true;
     }
 

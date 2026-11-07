@@ -24,10 +24,13 @@ public interface AdminRentalService {
     // 관리자 대여 상세 (명세 51번)
     AdminRentalDetailResponseDTO getAdminRental(Long rentalId);
 
-    // 노쇼 (명세 58번, 조교 API 없이 스케줄러만) : 후보 찾기 + 한 건씩 처리
-    List<Long> findNoShowCandidateIds(LocalDateTime now);
+    // 수령 기한 처리 (명세 58번, 조교 API 없이 스케줄러만) : 후보 찾기 + 한 건씩 처리
+    //  후보 = 이 상태이면서 수령 기한이 지난 대여 (수령 대기 → 노쇼, 승인 대기 → 자동 취소)
+    List<Long> findPickupExpiredIds(RentalStatus status, LocalDateTime now);
 
     boolean markNoShow(Long rentalId, LocalDateTime now);
+
+    boolean cancelExpiredApplication(Long rentalId, LocalDateTime now);
 
     // 사진 조회 (명세 56번) : imageType이 null이면 전체
     RentalImageListResponseDTO getRentalImages(Long rentalId, RentalImageType imageType);
