@@ -166,10 +166,13 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
     }
 
     // 기기 폐기 : 이미 폐기된 기기를 409로 구분하려고 삭제 여부와 상관없이 조회한다
+    //  기기 행을 잠그고 나서 상태를 본다 — 잠금 없이 읽으면 그 사이 대여 신청이 RESERVED로 바꿔도
+    //  옛 상태(AVAILABLE)로 검사를 통과해, 진행 중인 대여에 폐기된 기기가 연결된다
+    //  첫 쿼리가 잠금이라 기본 격리 수준으로 충분하다 (잠그며 읽으면 최신 커밋 값을 본다)
     @Override
     @Transactional
     public void disposeEquipmentItem(Long itemId) {
-        EquipmentItem item = equipmentItemRepository.findById(itemId)
+        EquipmentItem item = equipmentItemRepository.findWithLockById(itemId)
                 .orElseThrow(() -> new EquipmentItemException(EquipmentItemErrorCode.ITEM_NOT_FOUND));
 
         if (item.getDeletedAt() != null) {
