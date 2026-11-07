@@ -57,6 +57,13 @@ public enum EquipmentItemErrorCode implements BaseErrorCode {
             "이미 폐기된 기기입니다."
     ),
 
+    // 11-07 결정 : 대여 흐름 중인 기기는 반려·반납으로 흐름을 끝낸 뒤에 수정한다
+    ITEM_IN_RENTAL(
+            HttpStatus.CONFLICT,
+            "EQUIPMENTITEM409_5",
+            "대여 예정이거나 대여 중인 기기는 수정할 수 없습니다. 반려 또는 반납 처리 후 수정해 주세요."
+    ),
+
     MODEL_CHANGED(
             HttpStatus.CONFLICT,
             "EQUIPMENTITEM409_4",

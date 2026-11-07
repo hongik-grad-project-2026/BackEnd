@@ -343,14 +343,17 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         if (model.getLabelPrefix() != null) {
             labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId());
         }
-        if (equipmentItemRepository.existsByEquipmentModelIdAndDeletedAtIsNullAndStatusIn(
-                modelId, List.of(EquipmentItemStatus.RESERVED, EquipmentItemStatus.RENTED))) {
+
+        // 살아 있는 기기를 전부 잠그며 가져와서, 그 목록으로 예약·대여 중인지 본다
+        //  잠금 없이 확인하면 그 사이 대여 신청이 기기를 RESERVED로 바꿔도 폐기가 진행된다 (42 기기 폐기와 같은 문제)
+        //  대여 신청도 기기 행을 잠그므로 둘이 한 줄로 선다
+        List<EquipmentItem> items = equipmentItemRepository.findAllWithLockByEquipmentModelIdAndDeletedAtIsNull(modelId);
+        if (items.stream().anyMatch(item -> EquipmentItemStatus.IN_USE.contains(item.getStatus()))) {
             throw new EquipmentModelException(EquipmentModelErrorCode.MODEL_IN_USE);
         }
 
         // 남은 기기(대여 가능·고장)도 함께 폐기 : 변경 감지로 기기마다 deleted_at UPDATE
-        equipmentItemRepository.findAllByEquipmentModelIdAndDeletedAtIsNull(modelId)
-                .forEach(EquipmentItem::dispose);
+        items.forEach(EquipmentItem::dispose);
         model.retire();
     }
 
