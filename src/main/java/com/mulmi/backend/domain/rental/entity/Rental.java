@@ -3,6 +3,7 @@ package com.mulmi.backend.domain.rental.entity;
 import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
 import com.mulmi.backend.domain.rental.enums.ApplicationType;
+import com.mulmi.backend.domain.rental.enums.CancelReasonType;
 import com.mulmi.backend.domain.rental.enums.RejectReasonType;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import com.mulmi.backend.domain.semester.entity.Semester;
@@ -92,6 +93,15 @@ public class Rental extends BaseEntity {
     @Column(name = "reject_reason_detail", length = 500)
     private String rejectReasonDetail;
 
+    // 학생 취소 사유·시각 (취소됐을 때만 값이 있다, 명세 49)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "cancel_reason", length = 30)
+    private CancelReasonType cancelReason;
+
+    @Column(name = "canceled_at")
+    private LocalDateTime canceledAt;
+
     // 실제로 기기를 가져간 시각 (수령 처리 때 기록)
     @Column(name = "actual_pickup_at")
     private LocalDateTime actualPickupAt;
@@ -140,6 +150,13 @@ public class Rental extends BaseEntity {
         this.reviewedAt = now;
         this.rejectReasonType = reasonType;
         this.rejectReasonDetail = reasonDetail;
+    }
+
+    // 학생 취소 : 상태 검사와 기기 재고 복귀는 서비스가 한다 (반려와 같은 A안)
+    public void cancel(CancelReasonType reason, LocalDateTime now) {
+        this.status = RentalStatus.CANCELED;
+        this.cancelReason = reason;
+        this.canceledAt = now;
     }
 
     // 화면에 보여줄 상태 : 연체는 저장하지 않고 계산한다 (RENTING + 반납 예정 시각 지남, 11-07 결정)

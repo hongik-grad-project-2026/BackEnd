@@ -11,6 +11,8 @@ import com.mulmi.backend.domain.equipment.exception.code.EquipmentModelErrorCode
 import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.rental.dto.request.RentalCreateRequestDTO;
+import com.mulmi.backend.domain.rental.dto.request.RentalCancelRequestDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalCancelResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalCreateResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalDetailResponseDTO;
 import com.mulmi.backend.domain.rental.entity.RentalImage;
@@ -221,10 +223,36 @@ public class RentalServiceImpl implements RentalService {
                 rental.getActualReturnAt(),
                 rental.getRejectReasonType(),
                 rental.getRejectReasonDetail(),
+                rental.getCancelReason(),
+                rental.getCanceledAt(),
                 s3StorageService.createDownloadUrl(pickupImageKey),
                 s3StorageService.createDownloadUrl(returnImageKey),
                 rental.getCreatedAt()
         );
+    }
+
+    // 신청 취소 (명세 49번) : 격리 수준 기본값인 이유는 승인(52)과 같다 — 첫 쿼리가 잠금 조회라 이전 스냅샷이 없다
+    @Override
+    @Transactional
+    public RentalCancelResponseDTO cancelRental(Long userId, Long rentalId, RentalCancelRequestDTO dto) {
+        // 1. 내 대여를 잠그며 찾기 : 조교 승인·반려, 근로생 수령 처리와 동시에 와도 한 줄로 선다
+        Rental rental = rentalRepository.findWithLockByIdAndUserId(rentalId, userId)
+                .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_FOUND));
+
+        // 2. 승인 대기·수령 대기만 취소 가능 (명세 49, 10/15 회의 확정)
+        if (rental.getStatus() != RentalStatus.PENDING_APPROVAL
+                && rental.getStatus() != RentalStatus.READY_FOR_PICKUP) {
+            throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
+        }
+
+        // 3. 신청 때 예약한 기기를 재고로 되돌린다 (반려 53과 같음 — 두 상태 모두 기기는 RESERVED)
+        rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+
+        // 4. 취소 기록
+        rental.cancel(dto.cancelReason(), LocalDateTime.now(KOREA));
+
+        return new RentalCancelResponseDTO(
+                rental.getId(), rental.getStatus(), rental.getCancelReason(), rental.getCanceledAt());
     }
 
     // 엔티티 → 목록 한 줄. 모델·카테고리·기기는 fetch join으로 이미 들어와 있어 추가 쿼리가 없다
@@ -245,6 +273,8 @@ public class RentalServiceImpl implements RentalService {
                 rental.getActualReturnAt(),
                 rental.getRejectReasonType(),
                 rental.getRejectReasonDetail(),
+                rental.getCancelReason(),
+                rental.getCanceledAt(),
                 rental.getCreatedAt()
         );
     }

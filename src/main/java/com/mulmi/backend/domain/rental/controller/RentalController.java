@@ -1,6 +1,8 @@
 package com.mulmi.backend.domain.rental.controller;
 
+import com.mulmi.backend.domain.rental.dto.request.RentalCancelRequestDTO;
 import com.mulmi.backend.domain.rental.dto.request.RentalCreateRequestDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalCancelResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalCreateResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalDetailResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalPageResponseDTO;
@@ -19,6 +21,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -82,6 +85,21 @@ public class RentalController {
         return ApiResponse.onSuccess(
                 RentalSuccessCode.MY_RENTAL_FOUND,
                 rentalService.getMyRental(userId, rentalId)
+        );
+    }
+
+    // 신청 취소 (명세 49번) : 승인 대기·수령 대기만, 취소 사유는 화면의 3개 중 하나
+    @Operation(summary = "대여 신청 취소")
+    @PatchMapping("/me/{rental_id}/cancel")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<RentalCancelResponseDTO> cancelRental(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable("rental_id") Long rentalId,
+            @RequestBody @Valid RentalCancelRequestDTO dto
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_CANCELED,
+                rentalService.cancelRental(userId, rentalId, dto)
         );
     }
 }

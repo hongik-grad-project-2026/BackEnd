@@ -163,4 +163,9 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
     //  SELECT ... FROM rental WHERE rental_id = ? FOR UPDATE
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Rental> findWithLockById(Long rentalId);
+
+    // 학생 취소(49) : 잠그면서 내 대여만 (남의 대여는 빈 결과 → 404, 48과 같은 원칙)
+    //  SELECT ... FROM rental WHERE rental_id = ? AND user_id = ? FOR UPDATE
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Rental> findWithLockByIdAndUserId(Long rentalId, Long userId);
 }

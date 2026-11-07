@@ -1,6 +1,7 @@
 package com.mulmi.backend.domain.rental.dto.response;
 
 import com.mulmi.backend.domain.rental.enums.ApplicationType;
+import com.mulmi.backend.domain.rental.enums.CancelReasonType;
 import com.mulmi.backend.domain.rental.enums.RejectReasonType;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 
@@ -25,6 +26,8 @@ public record RentalSummaryResponseDTO(
         LocalDateTime actualReturnAt,
         RejectReasonType rejectReasonType,
         String rejectReasonDetail,
+        CancelReasonType cancelReason,  // 학생이 취소했을 때만 (49)
+        LocalDateTime canceledAt,
         LocalDateTime createdAt
 ) {
 }
