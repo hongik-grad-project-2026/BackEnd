@@ -75,17 +75,17 @@ public class RentalServiceImpl implements RentalService {
         Semester semester = semesterRepository
                 .findFirstByStartDateLessThanEqualOrderByStartDateDesc(now.toLocalDate())
                 .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_OPEN));
-        boolean preApply = semester.isPreApplyPeriod(now);
-        if (!preApply && !semester.isOnDemandPeriod(now)) {
-            throw new RentalException(RentalErrorCode.RENTAL_NOT_OPEN);
-        }
-        ApplicationType applicationType = preApply ? ApplicationType.REGULAR : ApplicationType.ON_DEMAND;
-
-        // 다음 학기 개강일: 상시 수령희망일 상한(5단계)과 반납 마감 계산(9단계)에 쓴다
+        // 다음 학기 개강일: 상시 기간의 끝, 상시 수령희망일 상한(5단계), 반납 마감 계산(9단계)에 쓴다
         LocalDate nextSemesterStart = semesterRepository
                 .findFirstByStartDateGreaterThanOrderByStartDateAsc(semester.getStartDate())
                 .map(Semester::getStartDate)
                 .orElseGet(semester::defaultNextStartDate);
+
+        boolean preApply = semester.isPreApplyPeriod(now);
+        if (!isApplyOpen(semester, preApply, nextSemesterStart, now)) {
+            throw new RentalException(RentalErrorCode.RENTAL_NOT_OPEN);
+        }
+        ApplicationType applicationType = preApply ? ApplicationType.REGULAR : ApplicationType.ON_DEMAND;
 
         // 2. 블랙리스트 : MVP에서 제외 (11-07 결정)
 
@@ -103,14 +103,8 @@ public class RentalServiceImpl implements RentalService {
         }
 
         // 5. 수령희망일
-        //    사전신청: 수령 기간(개강+7일 ~ +13일)의 날짜만
-        //    상시: 오늘~모레(20:00 이후 신청이면 오늘 제외), 다음 학기 개강일 전까지
         LocalDate pickupDate = dto.expectedPickupDate();
-        boolean pickupOk = preApply
-                ? semester.isPickupDateSelectable(pickupDate)
-                : semester.isOnDemandPickupDateSelectable(pickupDate, now)
-                        && pickupDate.isBefore(nextSemesterStart);
-        if (!pickupOk) {
+        if (!isPickupDateSelectable(semester, preApply, nextSemesterStart, pickupDate, now)) {
             throw new RentalException(RentalErrorCode.INVALID_PICKUP_DATE);
         }
 
@@ -134,21 +128,15 @@ public class RentalServiceImpl implements RentalService {
                         model.getId(), EquipmentItemStatus.AVAILABLE)
                 .orElseThrow(() -> new RentalException(RentalErrorCode.OUT_OF_STOCK));
 
-        // 8-1. 시간에 따라 결과가 달라지는 검사를 잠금을 얻은 뒤 시각으로 한 번 더 (11-07 리뷰 수정)
+        // 8-1. 1·5단계를 잠금을 얻은 뒤 시각으로 한 번 더 (같은 메서드, 같은 규칙)
         //      잠금(특히 신청이 몰리는 기기 행)을 기다리는 사이 경계를 넘었을 수 있다
         //      예) 19:59:59에 "오늘 수령"으로 신청 → 기기 잠금 대기 → 20:00:02에 실행되면 받으면 안 되는 신청
-        //      1·5단계는 잠금 전에 빨리 거절하는 용도로 그대로 두고, 여기서는 기간과 상시 수령희망일만 다시 본다
+        //      1·5단계는 잠금 전에 빨리 거절하는 용도로 그대로 둔다
         LocalDateTime lockedNow = LocalDateTime.now(KOREA);
-        boolean stillOpen = preApply
-                ? semester.isPreApplyPeriod(lockedNow)
-                // 상시는 학기 안에서 끝이 없으므로, 그사이 다음 학기가 시작됐는지도 본다
-                // (1단계는 그 시각의 지금 학기를 골랐기 때문에 따로 볼 필요가 없었다)
-                : semester.isOnDemandPeriod(lockedNow) && lockedNow.toLocalDate().isBefore(nextSemesterStart);
-        if (!stillOpen) {
+        if (!isApplyOpen(semester, preApply, nextSemesterStart, lockedNow)) {
             throw new RentalException(RentalErrorCode.RENTAL_NOT_OPEN);
         }
-        // 사전신청의 수령희망일(수령 주간)은 시각과 상관없어 다시 볼 필요가 없다
-        if (!preApply && !semester.isOnDemandPickupDateSelectable(pickupDate, lockedNow)) {
+        if (!isPickupDateSelectable(semester, preApply, nextSemesterStart, pickupDate, lockedNow)) {
             throw new RentalException(RentalErrorCode.INVALID_PICKUP_DATE);
         }
 
@@ -295,6 +283,26 @@ public class RentalServiceImpl implements RentalService {
                 rental.getCanceledAt(),
                 rental.getCreatedAt()
         );
+    }
+
+    // 신청 기간 : 46의 1단계(잠금 전)와 8-1단계(잠금 후)가 같은 규칙을 쓰도록 한 곳에 둔다
+    //  사전신청이면 아직 사전신청 기간인지 / 상시면 상시 기간이고 다음 학기 개강 전인지
+    //  (상시는 학기 안에서 끝이 없어서, 잠금 대기 중 다음 학기가 시작됐는지는 개강일로 본다)
+    private static boolean isApplyOpen(Semester semester, boolean preApply,
+                                       LocalDate nextSemesterStart, LocalDateTime now) {
+        return preApply
+                ? semester.isPreApplyPeriod(now)
+                : semester.isOnDemandPeriod(now) && now.toLocalDate().isBefore(nextSemesterStart);
+    }
+
+    // 수령희망일 : 46의 5단계(잠금 전)와 8-1단계(잠금 후)가 같은 규칙을 쓰도록 한 곳에 둔다
+    //  사전신청 : 수령 기간(개강+7일 ~ +13일)의 날짜만
+    //  상시 : 오늘~모레(20:00 이후면 오늘 제외), 다음 학기 개강일 전까지
+    private static boolean isPickupDateSelectable(Semester semester, boolean preApply, LocalDate nextSemesterStart,
+                                                  LocalDate pickupDate, LocalDateTime now) {
+        return preApply
+                ? semester.isPickupDateSelectable(pickupDate)
+                : semester.isOnDemandPickupDateSelectable(pickupDate, now) && pickupDate.isBefore(nextSemesterStart);
     }
 
     // 정지·탈퇴 계정 거부 (이유를 구분해서 알린다)
