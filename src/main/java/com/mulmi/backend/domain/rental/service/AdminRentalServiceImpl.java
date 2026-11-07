@@ -41,7 +41,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,40 +94,33 @@ public class AdminRentalServiceImpl implements AdminRentalService {
     public AdminRentalPageResponseDTO getAdminRentals(List<RentalStatus> statuses, String keyword, int page, int size) {
         LocalDateTime now = LocalDateTime.now(KOREA);
 
-        // 1. 상태 필터 나누기 : RENTING·OVERDUE는 "RENTING 행을 연체 여부로 나눈 것"이라 따로 처리한다
-        boolean allStatuses = statuses == null || statuses.isEmpty();
-        boolean wantRenting = !allStatuses && statuses.contains(RentalStatus.RENTING);
-        boolean wantOverdue = !allStatuses && statuses.contains(RentalStatus.OVERDUE);
-        Set<RentalStatus> plainStatuses = allStatuses ? EnumSet.noneOf(RentalStatus.class) : EnumSet.copyOf(statuses);
-        plainStatuses.removeAll(EnumSet.of(RentalStatus.RENTING, RentalStatus.OVERDUE));
-        if (plainStatuses.isEmpty()) {
-            // 빈 IN ()은 SQL 오류가 날 수 있어, DB에 저장되지 않는 OVERDUE를 넣어 "아무것도 안 걸리는" 조건으로 만든다
-            plainStatuses.add(RentalStatus.OVERDUE);
-        }
+        // 1. 상태 필터 나누기 (47과 공유)
+        RentalStatusFilter filter = RentalStatusFilter.of(statuses);
 
         // 2. 한 페이지 조회 (정렬은 쿼리의 ORDER BY r.id DESC = 신청 최신순)
         Page<AdminRentalSummaryResponseDTO> responsePage = rentalRepository.searchAdminRentals(
-                        allStatuses, plainStatuses, wantRenting, wantOverdue, now,
+                        filter.allStatuses(), filter.plainStatuses(), filter.wantRenting(), filter.wantOverdue(), now,
                         normalizeKeyword(keyword), PageRequest.of(page, size))
                 .map(rental -> toAdminSummary(rental, now));
 
         // 3. 탭 옆 숫자
-        return AdminRentalPageResponseDTO.of(responsePage, countByStatus(now));
+        Map<String, Long> statusCounts = toStatusCounts(rentalRepository.countByStatus(), rentalRepository.countOverdue(now));
+        return AdminRentalPageResponseDTO.of(responsePage, statusCounts);
     }
 
     // 상태별 대여 수 + "all" 합계 (대여가 없는 상태도 0, RENTING 중 연체는 OVERDUE로 옮긴다)
-    private Map<String, Long> countByStatus(LocalDateTime now) {
+    // 내 대여 목록(47, RentalServiceImpl)도 같은 모양으로 만들므로 같은 패키지에서 부를 수 있게 static으로 둔다
+    static Map<String, Long> toStatusCounts(List<RentalRepository.StatusCount> statusCounts, long overdue) {
         Map<String, Long> counts = new LinkedHashMap<>();
         counts.put("all", 0L);
         for (RentalStatus status : RentalStatus.values()) {
             counts.put(status.name(), 0L);
         }
         long total = 0;
-        for (RentalRepository.StatusCount count : rentalRepository.countByStatus()) {
+        for (RentalRepository.StatusCount count : statusCounts) {
             counts.put(count.getStatus().name(), count.getCount());
             total += count.getCount();
         }
-        long overdue = rentalRepository.countOverdue(now);
         counts.put(RentalStatus.RENTING.name(), counts.get(RentalStatus.RENTING.name()) - overdue);
         counts.put(RentalStatus.OVERDUE.name(), overdue);
         counts.put("all", total);
@@ -150,7 +142,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
                 model.getName(),
                 rental.getEquipmentItem().getLabelCode(),
                 rental.getApplicationType(),
-                displayStatus(rental, now),
+                rental.getDisplayStatus(now),
                 rental.getPurpose(),
                 rental.getExpectedPickupDate(),
                 rental.getExpectedReturnAt(),
@@ -159,18 +151,8 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         );
     }
 
-    // 화면에 보여줄 상태 : 연체는 저장하지 않고 계산한다 (RENTING + 반납 예정 시각 지남)
-    private RentalStatus displayStatus(Rental rental, LocalDateTime now) {
-        if (rental.getStatus() == RentalStatus.RENTING
-                && rental.getExpectedReturnAt() != null
-                && rental.getExpectedReturnAt().isBefore(now)) {
-            return RentalStatus.OVERDUE;
-        }
-        return rental.getStatus();
-    }
-
-    // 빈 검색어는 조건 없음(null)으로
-    private String normalizeKeyword(String keyword) {
+    // 빈 검색어는 조건 없음(null)으로 (47 RentalServiceImpl도 같은 패키지에서 부른다)
+    static String normalizeKeyword(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return null;
         }

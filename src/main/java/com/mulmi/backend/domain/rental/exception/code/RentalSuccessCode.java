@@ -23,6 +23,13 @@ public enum RentalSuccessCode implements BaseSuccessCode {
             "대여 목록을 조회했습니다."
     ),
 
+    // 메시지는 명세 47번 성공 응답
+    MY_RENTALS_FOUND(
+            HttpStatus.OK,
+            "RENTAL200_6",
+            "내 대여 목록을 조회했습니다."
+    ),
+
     // 메시지는 명세 53번 성공 응답
     RENTAL_REJECTED(
             HttpStatus.OK,

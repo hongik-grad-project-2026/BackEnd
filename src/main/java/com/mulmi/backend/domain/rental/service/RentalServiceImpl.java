@@ -12,6 +12,8 @@ import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.rental.dto.request.RentalCreateRequestDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalCreateResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalPageResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalSummaryResponseDTO;
 import com.mulmi.backend.domain.rental.entity.Rental;
 import com.mulmi.backend.domain.rental.enums.ApplicationType;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
@@ -25,7 +27,10 @@ import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.UserException;
 import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
+import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +38,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -44,6 +51,7 @@ public class RentalServiceImpl implements RentalService {
     private final EquipmentModelRepository equipmentModelRepository;
     private final EquipmentItemRepository equipmentItemRepository;
     private final UserRepository userRepository;
+    private final S3StorageService s3StorageService;
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
 
@@ -142,6 +150,50 @@ public class RentalServiceImpl implements RentalService {
 
         return new RentalCreateResponseDTO(
                 rental.getId(), rental.getStatus(), rental.getApplicationType(), rental.getExpectedPickupDate());
+    }
+
+    // 내 대여 목록 (조회라 클래스의 readOnly 트랜잭션을 그대로 쓴다)
+    // 흐름은 관리자 목록(50)과 같고, 쿼리가 로그인한 학생의 대여만 고른다
+    @Override
+    public RentalPageResponseDTO getMyRentals(Long userId, List<RentalStatus> statuses, String keyword, int page, int size) {
+        LocalDateTime now = LocalDateTime.now(KOREA);
+
+        // 1. 상태 필터 나누기 (50과 공유)
+        RentalStatusFilter filter = RentalStatusFilter.of(statuses);
+
+        // 2. 한 페이지 조회 (신청 최신순)
+        Page<RentalSummaryResponseDTO> responsePage = rentalRepository.searchMyRentals(
+                        userId, filter.allStatuses(), filter.plainStatuses(), filter.wantRenting(), filter.wantOverdue(), now,
+                        AdminRentalServiceImpl.normalizeKeyword(keyword), PageRequest.of(page, size))
+                .map(rental -> toSummary(rental, now));
+
+        // 3. 탭 옆 숫자 (내 대여만)
+        Map<String, Long> statusCounts = AdminRentalServiceImpl.toStatusCounts(
+                rentalRepository.countByStatusAndUserId(userId),
+                rentalRepository.countOverdueByUserId(userId, now));
+        return RentalPageResponseDTO.of(responsePage, statusCounts);
+    }
+
+    // 엔티티 → 목록 한 줄. 모델·카테고리·기기는 fetch join으로 이미 들어와 있어 추가 쿼리가 없다
+    private RentalSummaryResponseDTO toSummary(Rental rental, LocalDateTime now) {
+        EquipmentModel model = rental.getEquipmentModel();
+        return new RentalSummaryResponseDTO(
+                rental.getId(),
+                model.getId(),
+                model.getName(),
+                s3StorageService.createDownloadUrl(model.getModelImageUrl()),
+                model.getCategory().getName(),
+                rental.getEquipmentItem().getLabelCode(),
+                rental.getApplicationType(),
+                rental.getDisplayStatus(now),
+                rental.getExpectedPickupDate(),
+                rental.getActualPickupAt(),
+                rental.getExpectedReturnAt(),
+                rental.getActualReturnAt(),
+                rental.getRejectReasonType(),
+                rental.getRejectReasonDetail(),
+                rental.getCreatedAt()
+        );
     }
 
     // 정지·탈퇴 계정 거부 (이유를 구분해서 알린다)

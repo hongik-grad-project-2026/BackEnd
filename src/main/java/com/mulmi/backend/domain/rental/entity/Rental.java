@@ -141,4 +141,15 @@ public class Rental extends BaseEntity {
         this.rejectReasonType = reasonType;
         this.rejectReasonDetail = reasonDetail;
     }
+
+    // 화면에 보여줄 상태 : 연체는 저장하지 않고 계산한다 (RENTING + 반납 예정 시각 지남, 11-07 결정)
+    // DB의 status는 그대로 RENTING이다 — 목록·상세(47·48·50·51)가 이 값을 응답에 쓴다
+    public RentalStatus getDisplayStatus(LocalDateTime now) {
+        if (status == RentalStatus.RENTING
+                && expectedReturnAt != null
+                && expectedReturnAt.isBefore(now)) {
+            return RentalStatus.OVERDUE;
+        }
+        return status;
+    }
 }
