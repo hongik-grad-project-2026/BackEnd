@@ -382,15 +382,30 @@ public class AdminRentalServiceImpl implements AdminRentalService {
             throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
         }
 
-        // 3. S3 업로드
-        String objectKey = s3StorageService.upload(image, "rental-images/" + rentalId);
-
-        // 4. 같은 종류 사진이 있으면 교체, 없으면 새로 저장
-        User uploader = userRepository.getReferenceById(uploaderId);
+        // 3. 같은 종류 사진이 이미 있나 (있으면 교체 : 커밋 후 지울 옛 파일 키를 기억해 둔다)
         RentalImage rentalImage = rentalImageRepository
                 .findByRentalIdAndImageTypeAndImageSide(rentalId, imageType, RentalImageSide.FRONT)
                 .orElse(null);
         String previousObjectKey = rentalImage == null ? null : rentalImage.getImageUrl();
+
+        // 4. S3 업로드 → 바로 파일 정리 예약 (모델 이미지 36번과 같은 순서)
+        //    S3는 롤백되지 않으므로 트랜잭션 결과를 보고 정리한다
+        //    커밋 → 교체된 옛 파일 삭제 / 롤백 → 방금 올린 파일 삭제 / 결과 불명 → 둘 다 보존
+        //    예약을 업로드 직후에 거는 이유 : 아래 DB 저장이 실패해도 롤백 때 방금 올린 파일이 지워지게
+        String objectKey = s3StorageService.upload(image, "rental-images/" + rentalId);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_COMMITTED) {
+                    deleteImageQuietly(previousObjectKey);
+                } else if (status == STATUS_ROLLED_BACK) {
+                    deleteImageQuietly(objectKey);
+                }
+            }
+        });
+
+        // 5. 교체 또는 새로 저장
+        User uploader = userRepository.getReferenceById(uploaderId);
         if (rentalImage == null) {
             rentalImage = RentalImage.builder()
                     .rental(rental)
@@ -404,19 +419,6 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         }
         // flush로 지금 INSERT/UPDATE를 실행해 uploadedAt(updatedAt)을 채운다
         rentalImage = rentalImageRepository.saveAndFlush(rentalImage);
-
-        // 5. S3는 롤백되지 않으므로 파일 정리는 트랜잭션 결과를 보고 한다 (모델 이미지 36번과 같은 방식)
-        //    커밋 → 교체된 옛 파일 삭제 / 롤백 → 방금 올린 파일 삭제 / 결과 불명 → 둘 다 보존
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                if (status == STATUS_COMMITTED) {
-                    deleteImageQuietly(previousObjectKey);
-                } else if (status == STATUS_ROLLED_BACK) {
-                    deleteImageQuietly(objectKey);
-                }
-            }
-        });
 
         return new RentalImageUploadResponseDTO(
                 rentalImage.getId(), rentalId, imageType,
