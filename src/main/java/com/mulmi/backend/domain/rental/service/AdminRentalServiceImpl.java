@@ -90,7 +90,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 4. 신청자 계정 상태 : 신청 뒤에 정지·탈퇴됐을 수 있다 (명세 52 처리 규칙 2)
         RentalServiceImpl.validateAccountStatus(rental.getUser());
 
-        // 5. 블랙리스트 : 신청(46)과 같이 블랙리스트 담당 작업 후 추가
+        // 5. 블랙리스트 : MVP에서 제외 (11-07 결정)
 
         // 6. 승인 : 조교는 FK 값만 필요하므로 조회 없이 참조만 만든다
         User assistant = userRepository.getReferenceById(assistantId);
@@ -377,7 +377,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
 
         // 3. 연체였는지 : 저장하지 않고 반납 시점에 계산한다
         boolean wasOverdue = rental.getExpectedReturnAt() != null && now.isAfter(rental.getExpectedReturnAt());
-        // 연체 반납 시 블랙리스트 등록은 미정(명세 57) — 블랙리스트 담당 작업 후 협의
+        // 연체 반납 시 블랙리스트 등록 : MVP에서 제외 (11-07 결정)
 
         // 4. 기기는 항상 대여 가능으로 되돌린다
         //    반납 때 고장을 발견해도 반납을 먼저 끝낸 뒤 기기 수정(41)으로 고장 처리한다 (11-07 결정)

@@ -87,7 +87,7 @@ public class RentalServiceImpl implements RentalService {
                 .map(Semester::getStartDate)
                 .orElseGet(semester::defaultNextStartDate);
 
-        // 2. 블랙리스트: 오늘이 제재 기간 안이면 403 (BlacklistRepository 생기면 추가 — 희빈이형 끝나면 시작)
+        // 2. 블랙리스트 : MVP에서 제외 (11-07 결정)
 
         // 3. 모델: 존재하고 대여 가능(AVAILABLE)이어야 한다
         EquipmentModel model = equipmentModelRepository.findByIdAndDeletedAtIsNull(dto.modelId())
