@@ -2,6 +2,7 @@ package com.mulmi.backend.domain.rental.controller;
 
 import com.mulmi.backend.domain.rental.dto.request.RentalCreateRequestDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalCreateResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalDetailResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalPageResponseDTO;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import com.mulmi.backend.domain.rental.exception.code.RentalSuccessCode;
@@ -18,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -66,6 +68,20 @@ public class RentalController {
         return ApiResponse.onSuccess(
                 RentalSuccessCode.MY_RENTALS_FOUND,
                 rentalService.getMyRentals(userId, status, keyword, page, size)
+        );
+    }
+
+    // 내 대여 상세 (명세 48번) : 남의 대여 번호를 넣어도 404 (존재 여부를 드러내지 않는다)
+    @Operation(summary = "내 대여 상세")
+    @GetMapping("/me/{rental_id}")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ApiResponse<RentalDetailResponseDTO> getMyRental(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable("rental_id") Long rentalId
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.MY_RENTAL_FOUND,
+                rentalService.getMyRental(userId, rentalId)
         );
     }
 }

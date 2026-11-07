@@ -12,6 +12,10 @@ import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.rental.dto.request.RentalCreateRequestDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalCreateResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalDetailResponseDTO;
+import com.mulmi.backend.domain.rental.entity.RentalImage;
+import com.mulmi.backend.domain.rental.enums.RentalImageType;
+import com.mulmi.backend.domain.rental.repository.RentalImageRepository;
 import com.mulmi.backend.domain.rental.dto.response.RentalPageResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalSummaryResponseDTO;
 import com.mulmi.backend.domain.rental.entity.Rental;
@@ -52,6 +56,7 @@ public class RentalServiceImpl implements RentalService {
     private final EquipmentItemRepository equipmentItemRepository;
     private final UserRepository userRepository;
     private final S3StorageService s3StorageService;
+    private final RentalImageRepository rentalImageRepository;
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
 
@@ -172,6 +177,54 @@ public class RentalServiceImpl implements RentalService {
                 rentalRepository.countByStatusAndUserId(userId),
                 rentalRepository.countOverdueByUserId(userId, now));
         return RentalPageResponseDTO.of(responsePage, statusCounts);
+    }
+
+    // 내 대여 상세 (조회라 클래스의 readOnly 트랜잭션을 그대로 쓴다)
+    @Override
+    public RentalDetailResponseDTO getMyRental(Long userId, Long rentalId) {
+        LocalDateTime now = LocalDateTime.now(KOREA);
+
+        // 1. 내 대여 찾기 : 없거나 남의 대여면 똑같이 404 (명세 48 처리 규칙 2)
+        Rental rental = rentalRepository.findMyRental(rentalId, userId)
+                .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_FOUND));
+
+        // 2. 수령·반납 사진 : 종류별 S3 키 → 조회 URL (없으면 null)
+        String pickupImageKey = null;
+        String returnImageKey = null;
+        for (RentalImage image : rentalImageRepository.findByRentalId(rental.getId())) {
+            if (image.getImageType() == RentalImageType.PICKUP) {
+                pickupImageKey = image.getImageUrl();
+            } else if (image.getImageType() == RentalImageType.RETURN) {
+                returnImageKey = image.getImageUrl();
+            }
+        }
+
+        // 3. 응답 (모델·카테고리·기기는 fetch join으로 이미 들어와 있다)
+        EquipmentModel model = rental.getEquipmentModel();
+        return new RentalDetailResponseDTO(
+                rental.getId(),
+                model.getId(),
+                model.getName(),
+                s3StorageService.createDownloadUrl(model.getModelImageUrl()),
+                model.getDescription(),
+                model.getComponents(),
+                model.getCategory().getName(),
+                rental.getEquipmentItem().getLabelCode(),
+                rental.getApplicationType(),
+                rental.getDisplayStatus(now),
+                rental.getPurpose(),
+                rental.getMemo(),
+                rental.getExpectedPickupDate(),
+                rental.getReviewedAt(),
+                rental.getActualPickupAt(),
+                rental.getExpectedReturnAt(),
+                rental.getActualReturnAt(),
+                rental.getRejectReasonType(),
+                rental.getRejectReasonDetail(),
+                s3StorageService.createDownloadUrl(pickupImageKey),
+                s3StorageService.createDownloadUrl(returnImageKey),
+                rental.getCreatedAt()
+        );
     }
 
     // 엔티티 → 목록 한 줄. 모델·카테고리·기기는 fetch join으로 이미 들어와 있어 추가 쿼리가 없다

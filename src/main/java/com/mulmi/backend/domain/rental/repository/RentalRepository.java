@@ -135,6 +135,17 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
             Pageable pageable
     );
 
+    // 내 대여 상세 (명세 48) : 대여 id와 로그인한 학생을 함께 건다 → 남의 대여는 결과가 비어 404 (존재 여부도 숨김)
+    @Query("""
+            SELECT r FROM Rental r
+            JOIN FETCH r.equipmentModel m
+            JOIN FETCH m.category c
+            JOIN FETCH r.equipmentItem i
+            WHERE r.id = :rentalId
+              AND r.user.id = :userId
+            """)
+    Optional<Rental> findMyRental(@Param("rentalId") Long rentalId, @Param("userId") Long userId);
+
     // 내 대여의 상태별 수 (47 탭 옆 숫자)
     @Query("SELECT r.status AS status, COUNT(r) AS count FROM Rental r WHERE r.user.id = :userId GROUP BY r.status")
     List<StatusCount> countByStatusAndUserId(@Param("userId") Long userId);
