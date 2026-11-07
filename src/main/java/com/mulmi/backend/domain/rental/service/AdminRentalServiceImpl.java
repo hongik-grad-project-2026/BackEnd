@@ -302,14 +302,16 @@ public class AdminRentalServiceImpl implements AdminRentalService {
     @Override
     @Transactional
     public RentalCheckoutResponseDTO checkoutRental(Long rentalId, Long staffId) {
-        LocalDateTime now = LocalDateTime.now(KOREA);
-
         // 1. 대여 행 잠금 + 수령 대기일 때만
         Rental rental = rentalRepository.findWithLockById(rentalId)
                 .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_FOUND));
         if (rental.getStatus() != RentalStatus.READY_FOR_PICKUP) {
             throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
         }
+
+        // 현재 시각은 잠금을 얻은 뒤에 잰다 : 잠금을 기다리는 사이 20:00 기한을 넘었을 수 있다
+        // (먼저 재면 19:59:59에 들어와 20:00:05에 실행돼도 기한 전으로 보고 수령을 허용하고, 수령 시각도 옛 값으로 남는다)
+        LocalDateTime now = LocalDateTime.now(KOREA);
 
         // 2. 수령 기한 : 지나면 노쇼라 수령할 수 없다. 일찍 오는 것은 허용 (기한 계산은 Rental, 58 노쇼와 공유)
         Semester semester = rental.getSemester();
@@ -355,14 +357,15 @@ public class AdminRentalServiceImpl implements AdminRentalService {
     @Override
     @Transactional
     public RentalReturnResponseDTO returnRental(Long rentalId, Long staffId) {
-        LocalDateTime now = LocalDateTime.now(KOREA);
-
         // 1. 대여 행 잠금 + 대여 중일 때만 (연체도 DB 상태는 RENTING). 조기 반납 허용
         Rental rental = rentalRepository.findWithLockById(rentalId)
                 .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_FOUND));
         if (rental.getStatus() != RentalStatus.RENTING) {
             throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
         }
+
+        // 현재 시각은 잠금을 얻은 뒤에 잰다 (54와 같은 이유 : 연체 판단과 반납 시각이 잠금 대기 전 값이 되지 않게)
+        LocalDateTime now = LocalDateTime.now(KOREA);
 
         // 2. 반납 사진 : 수령 사진 필수 카테고리(노트북·태블릿)만 반납 때도 필수 (11-07 결정)
         Category category = rental.getEquipmentModel().getCategory();
