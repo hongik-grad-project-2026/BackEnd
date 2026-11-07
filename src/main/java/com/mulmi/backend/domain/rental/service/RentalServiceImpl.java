@@ -134,6 +134,24 @@ public class RentalServiceImpl implements RentalService {
                         model.getId(), EquipmentItemStatus.AVAILABLE)
                 .orElseThrow(() -> new RentalException(RentalErrorCode.OUT_OF_STOCK));
 
+        // 8-1. 시간에 따라 결과가 달라지는 검사를 잠금을 얻은 뒤 시각으로 한 번 더 (11-07 리뷰 수정)
+        //      잠금(특히 신청이 몰리는 기기 행)을 기다리는 사이 경계를 넘었을 수 있다
+        //      예) 19:59:59에 "오늘 수령"으로 신청 → 기기 잠금 대기 → 20:00:02에 실행되면 받으면 안 되는 신청
+        //      1·5단계는 잠금 전에 빨리 거절하는 용도로 그대로 두고, 여기서는 기간과 상시 수령희망일만 다시 본다
+        LocalDateTime lockedNow = LocalDateTime.now(KOREA);
+        boolean stillOpen = preApply
+                ? semester.isPreApplyPeriod(lockedNow)
+                // 상시는 학기 안에서 끝이 없으므로, 그사이 다음 학기가 시작됐는지도 본다
+                // (1단계는 그 시각의 지금 학기를 골랐기 때문에 따로 볼 필요가 없었다)
+                : semester.isOnDemandPeriod(lockedNow) && lockedNow.toLocalDate().isBefore(nextSemesterStart);
+        if (!stillOpen) {
+            throw new RentalException(RentalErrorCode.RENTAL_NOT_OPEN);
+        }
+        // 사전신청의 수령희망일(수령 주간)은 시각과 상관없어 다시 볼 필요가 없다
+        if (!preApply && !semester.isOnDemandPickupDateSelectable(pickupDate, lockedNow)) {
+            throw new RentalException(RentalErrorCode.INVALID_PICKUP_DATE);
+        }
+
         // 9. 기기 RESERVED + 대여 저장 → 응답
         // 기기 예약 : save() 없이 커밋 때 UPDATE (변경 감지)
         item.changeStatus(EquipmentItemStatus.RESERVED);
