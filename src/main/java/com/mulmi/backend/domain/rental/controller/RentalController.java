@@ -83,7 +83,7 @@ public class RentalController {
             @PathVariable("rental_id") Long rentalId
     ) {
         return ApiResponse.onSuccess(
-                RentalSuccessCode.MY_RENTAL_FOUND,
+                RentalSuccessCode.RENTAL_FOUND,
                 rentalService.getMyRental(userId, rentalId)
         );
     }

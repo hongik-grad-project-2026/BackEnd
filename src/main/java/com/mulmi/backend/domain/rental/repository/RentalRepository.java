@@ -146,6 +146,21 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
             """)
     Optional<Rental> findMyRental(@Param("rentalId") Long rentalId, @Param("userId") Long userId);
 
+    // 관리자 대여 상세 (명세 51) : 신청자·모델·카테고리·기기 + 처리자 3명(승인·수령·반납)까지 한 번에
+    //  처리자는 아직 처리 전이면 null이라 LEFT JOIN (일반 JOIN이면 승인 전 대여가 결과에서 빠진다)
+    @Query("""
+            SELECT r FROM Rental r
+            JOIN FETCH r.user u
+            JOIN FETCH r.equipmentModel m
+            JOIN FETCH m.category c
+            JOIN FETCH r.equipmentItem i
+            LEFT JOIN FETCH r.reviewedBy rb
+            LEFT JOIN FETCH r.pickupCheckedBy pb
+            LEFT JOIN FETCH r.returnCheckedBy tb
+            WHERE r.id = :rentalId
+            """)
+    Optional<Rental> findAdminRental(@Param("rentalId") Long rentalId);
+
     // 내 대여의 상태별 수 (47 탭 옆 숫자)
     @Query("SELECT r.status AS status, COUNT(r) AS count FROM Rental r WHERE r.user.id = :userId GROUP BY r.status")
     List<StatusCount> countByStatusAndUserId(@Param("userId") Long userId);

@@ -1,8 +1,10 @@
 package com.mulmi.backend.domain.rental.service;
 
 import com.mulmi.backend.domain.rental.dto.request.RentalRejectRequestDTO;
+import com.mulmi.backend.domain.rental.dto.response.AdminRentalDetailResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.AdminRentalPageResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalImageListResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalReturnResponseDTO;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
@@ -17,6 +19,12 @@ public interface AdminRentalService {
 
     // 관리자 대여 목록 (명세 50번)
     AdminRentalPageResponseDTO getAdminRentals(List<RentalStatus> statuses, String keyword, int page, int size);
+
+    // 관리자 대여 상세 (명세 51번)
+    AdminRentalDetailResponseDTO getAdminRental(Long rentalId);
+
+    // 사진 조회 (명세 56번) : imageType이 null이면 전체
+    RentalImageListResponseDTO getRentalImages(Long rentalId, RentalImageType imageType);
 
     // 대여 승인 (명세 52번)
     RentalApproveResponseDTO approveRental(Long rentalId, Long assistantId);

@@ -8,6 +8,7 @@ import com.mulmi.backend.domain.rental.service.AdminRentalService;
 import com.mulmi.backend.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.mulmi.backend.domain.rental.dto.response.AdminRentalDetailResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.AdminRentalPageResponseDTO;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import jakarta.validation.Valid;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalImageListResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalReturnResponseDTO;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
@@ -63,6 +65,19 @@ public class AdminRentalController {
         );
     }
 
+    // 관리자 대여 상세 (명세 51번) : 승인·수령·반납 처리 모달을 열 때 부른다 (연락처·처리자·사진 포함)
+    @Operation(summary = "관리자 대여 상세")
+    @GetMapping("/{rental_id}")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<AdminRentalDetailResponseDTO> getAdminRental(
+            @PathVariable("rental_id") Long rentalId
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_FOUND,
+                adminRentalService.getAdminRental(rentalId)
+        );
+    }
+
     // 대여 승인 (명세 52번) : 근로생은 승인할 수 없다
     @Operation(summary = "대여 승인")
     @PatchMapping("/{rental_id}/approve")
@@ -102,6 +117,20 @@ public class AdminRentalController {
         return ApiResponse.onSuccess(
                 RentalSuccessCode.RENTAL_RETURNED,
                 adminRentalService.returnRental(rentalId, userId)
+        );
+    }
+
+    // 사진 조회 (명세 56번) : imageType(PICKUP·RETURN) 없으면 전체, 잘못된 값은 400
+    @Operation(summary = "대여 사진 조회")
+    @GetMapping("/{rental_id}/images")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<RentalImageListResponseDTO> getRentalImages(
+            @PathVariable("rental_id") Long rentalId,
+            @RequestParam(required = false) RentalImageType imageType
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_IMAGES_FOUND,
+                adminRentalService.getRentalImages(rentalId, imageType)
         );
     }
 

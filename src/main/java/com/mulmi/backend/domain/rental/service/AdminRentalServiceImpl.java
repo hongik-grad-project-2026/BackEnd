@@ -2,7 +2,10 @@ package com.mulmi.backend.domain.rental.service;
 
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
 import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
+import com.mulmi.backend.domain.rental.dto.response.AdminRentalDetailResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.AdminRentalPageResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalImageListResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalImageResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.AdminRentalSummaryResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -148,6 +151,84 @@ public class AdminRentalServiceImpl implements AdminRentalService {
                 rental.getExpectedReturnAt(),
                 rental.getActualPickupAt(),
                 rental.getCreatedAt()
+        );
+    }
+
+    // 관리자 대여 상세 (명세 51번, 조회라 클래스의 readOnly 트랜잭션)
+    @Override
+    public AdminRentalDetailResponseDTO getAdminRental(Long rentalId) {
+        LocalDateTime now = LocalDateTime.now(KOREA);
+
+        // 1. 대여 + 신청자·모델·기기·처리자를 한 번에 (없으면 404)
+        Rental rental = rentalRepository.findAdminRental(rentalId)
+                .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_FOUND));
+
+        // 2. 사진 목록 (56과 같은 형식)
+        List<RentalImageResponseDTO> images = rentalImageRepository.findByRentalId(rentalId).stream()
+                .map(this::toImageResponse)
+                .toList();
+
+        // 3. 응답
+        User user = rental.getUser();
+        EquipmentModel model = rental.getEquipmentModel();
+        return new AdminRentalDetailResponseDTO(
+                rental.getId(),
+                new AdminRentalDetailResponseDTO.UserInfo(
+                        user.getId(), user.getName(), user.getStudentId(),
+                        user.getEmail(), user.getPhoneNumber(), user.getDepartment()),
+                new AdminRentalDetailResponseDTO.ModelInfo(
+                        model.getId(), model.getName(), model.getCategory().getName(),
+                        model.getDescription(), model.getComponents()),
+                rental.getEquipmentItem().getId(),
+                rental.getEquipmentItem().getLabelCode(),
+                rental.getApplicationType(),
+                rental.getDisplayStatus(now),
+                rental.getPurpose(),
+                rental.getMemo(),
+                rental.getExpectedPickupDate(),
+                rental.getActualPickupAt(),
+                rental.getExpectedReturnAt(),
+                rental.getActualReturnAt(),
+                nameOf(rental.getReviewedBy()),
+                rental.getReviewedAt(),
+                nameOf(rental.getPickupCheckedBy()),
+                nameOf(rental.getReturnCheckedBy()),
+                rental.getRejectReasonType(),
+                rental.getRejectReasonDetail(),
+                rental.getCancelReason(),
+                rental.getCanceledAt(),
+                images,
+                rental.getCreatedAt()
+        );
+    }
+
+    // 사진 조회 (명세 56번) : 수령·반납 처리 화면이 사진이 올라갔는지 확인한다
+    //  imageType이 없으면 전체 (대여당 최대 2장이라 거르기는 메모리에서 한다)
+    @Override
+    public RentalImageListResponseDTO getRentalImages(Long rentalId, RentalImageType imageType) {
+        if (!rentalRepository.existsById(rentalId)) {
+            throw new RentalException(RentalErrorCode.RENTAL_NOT_FOUND);
+        }
+        List<RentalImageResponseDTO> images = rentalImageRepository.findByRentalId(rentalId).stream()
+                .filter(image -> imageType == null || image.getImageType() == imageType)
+                .map(this::toImageResponse)
+                .toList();
+        return new RentalImageListResponseDTO(rentalId, images);
+    }
+
+    // 처리자 이름 (아직 처리 전이면 null)
+    private String nameOf(User user) {
+        return user == null ? null : user.getName();
+    }
+
+    // 사진 한 장 → 응답 (S3 키를 임시 조회 URL로 바꾼다, 51·56 공통)
+    private RentalImageResponseDTO toImageResponse(RentalImage image) {
+        return new RentalImageResponseDTO(
+                image.getId(),
+                image.getImageType(),
+                image.getImageSide(),
+                s3StorageService.createDownloadUrl(image.getImageUrl()),
+                image.getUpdatedAt()
         );
     }
 
