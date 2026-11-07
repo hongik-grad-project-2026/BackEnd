@@ -55,6 +55,12 @@ public enum EquipmentItemErrorCode implements BaseErrorCode {
             HttpStatus.CONFLICT,
             "EQUIPMENTITEM409_3",
             "이미 폐기된 기기입니다."
+    ),
+
+    MODEL_CHANGED(
+            HttpStatus.CONFLICT,
+            "EQUIPMENTITEM409_4",
+            "모델 정보가 변경되었습니다. 새로고침 후 다시 시도해 주세요."
     );
 
     private final HttpStatus status;

@@ -32,6 +32,18 @@ public enum EquipmentModelSuccessCode implements BaseSuccessCode {
             "모델별 기기 목록을 조회했습니다."
     ),
 
+    MODEL_UPDATED(
+            HttpStatus.OK,
+            "EQUIPMENTMODEL200_5",
+            "기자재 모델을 수정했습니다."
+    ),
+
+    MODEL_RETIRED(
+            HttpStatus.OK,
+            "EQUIPMENTMODEL200_6",
+            "기자재 모델을 폐기했습니다."
+    ),
+
     MODEL_CREATED(
             HttpStatus.CREATED,
             "EQUIPMENTMODEL201_1",

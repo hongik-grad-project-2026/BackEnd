@@ -1,6 +1,8 @@
 package com.mulmi.backend.domain.equipment.controller;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelUpdateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelUpdateResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentItemPageResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
 import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
@@ -53,6 +55,29 @@ public class AdminEquipmentModelController {
                 EquipmentModelSuccessCode.MODEL_CREATED,
                 equipmentModelService.createEquipmentModel(dto)
         );
+    }
+
+    // 모델 수정
+    @Operation(summary = "모델 수정")
+    @PatchMapping("/{model_id}")
+    @PreAuthorize("hasRole('ASSISTANT')")
+    public ApiResponse<EquipmentModelUpdateResponseDTO> updateEquipmentModel(
+            @PathVariable("model_id") Long modelId,
+            @RequestBody @Valid EquipmentModelUpdateRequestDTO dto
+    ) {
+        return ApiResponse.onSuccess(
+                EquipmentModelSuccessCode.MODEL_UPDATED,
+                equipmentModelService.updateEquipmentModel(modelId, dto)
+        );
+    }
+
+    // 모델 폐기
+    @Operation(summary = "모델 폐기")
+    @PatchMapping("/{model_id}/retire")
+    @PreAuthorize("hasRole('ASSISTANT')")
+    public ApiResponse<Void> retireEquipmentModel(@PathVariable("model_id") Long modelId) {
+        equipmentModelService.retireEquipmentModel(modelId);
+        return ApiResponse.onSuccess(EquipmentModelSuccessCode.MODEL_RETIRED, null);
     }
 
     // 모델 이미지 업로드

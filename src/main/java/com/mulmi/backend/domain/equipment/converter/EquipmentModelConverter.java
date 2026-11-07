@@ -9,7 +9,6 @@ import com.mulmi.backend.domain.equipment.entity.Category;
 import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
 import com.mulmi.backend.domain.equipment.entity.LabelPrefix;
-import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
 
 public class EquipmentModelConverter {
 
@@ -24,18 +23,8 @@ public class EquipmentModelConverter {
                 .specification(dto.specification())
                 .description(dto.description())
                 .rentalStatus(dto.rentalStatus())
+                .receivedDate(dto.receivedDate())
                 .disposalDate(dto.disposalDate())
-                .build();
-    }
-
-    // 모델 + 발급 번호 -> EquipmentItem 한 대
-    public static EquipmentItem toEquipmentItem(EquipmentModel model, int labelNumber) {
-        String labelCode = String.format("%s-%03d", model.getLabelPrefix().getCode(), labelNumber);
-        return EquipmentItem.builder()
-                .equipmentModel(model)
-                .labelNumber(labelNumber)
-                .labelCode(labelCode)
-                .status(EquipmentItemStatus.AVAILABLE)
                 .build();
     }
 
@@ -85,7 +74,7 @@ public class EquipmentModelConverter {
                 availableCount,
                 totalCount,
                 model.getRentalStatus(),
-                model.getCreatedAt().toLocalDate(),
+                model.getReceivedDate(),
                 model.getDisposalDate()
         );
     }

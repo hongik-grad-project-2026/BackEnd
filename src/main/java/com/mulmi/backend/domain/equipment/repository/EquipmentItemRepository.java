@@ -66,6 +66,16 @@ public interface EquipmentItemRepository extends JpaRepository<EquipmentItem, Lo
 
     Optional<EquipmentItem> findByIdAndDeletedAtIsNull(Long id);
 
+    // 모델에 살아 있는 기기가 있는지 (모델 카테고리·접두사 변경 제한)
+    boolean existsByEquipmentModelIdAndDeletedAtIsNull(Long modelId);
+
+    // 모델에 특정 상태의 살아 있는 기기가 있는지 (모델 폐기 제한)
+    boolean existsByEquipmentModelIdAndDeletedAtIsNullAndStatusIn(
+            Long modelId, Collection<EquipmentItemStatus> statuses);
+
+    // 모델 폐기 시 함께 폐기할 기기
+    List<EquipmentItem> findAllByEquipmentModelIdAndDeletedAtIsNull(Long modelId);
+
     // 일괄 등록할 라벨 중 이미 쓰인 게 하나라도 있는지 (폐기된 기기 포함 — 라벨은 재사용하지 않음)
     boolean existsByLabelCodeIn(Collection<String> labelCodes);
 }
