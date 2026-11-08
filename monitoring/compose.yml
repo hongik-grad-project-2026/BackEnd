@@ -10,3 +10,19 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: mulmi-grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    volumes:
+      # 데이터 소스 자동 등록 설정 (저장소에서 관리)
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      # 화면에서 만든 대시보드·설정 보존 (컨테이너를 지워도 남음)
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  grafana-data:
