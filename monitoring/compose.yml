@@ -1,0 +1,12 @@
+# 로컬 성능 측정용 모니터링 환경 (팀 EC2에는 띄우지 않음)
+# 실행: docker compose -f monitoring/compose.yml up -d
+
+services:
+  prometheus:
+    # 측정 환경을 재현할 수 있도록 버전 고정
+    image: prom/prometheus:v3.5.0
+    container_name: mulmi-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
