@@ -61,7 +61,8 @@ public class EquipmentModelConverter {
 
     // 모델 + 이미지 URL + 재고 -> 관리자 목록 한 줄
     public static AdminEquipmentModelSummaryResponseDTO toAdminEquipmentModelSummaryResponseDTO(
-            EquipmentModel model, String modelImageUrl, long availableCount, long totalCount) {
+            EquipmentModel model, String modelImageUrl, long availableCount, long totalCount,
+            boolean favorite) {
         return new AdminEquipmentModelSummaryResponseDTO(
                 model.getId(),
                 modelImageUrl,
@@ -73,6 +74,7 @@ public class EquipmentModelConverter {
                 model.getDescription(),
                 availableCount,
                 totalCount,
+                favorite,
                 model.getRentalStatus(),
                 model.getReceivedDate(),
                 model.getDisposalDate()
