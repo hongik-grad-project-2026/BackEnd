@@ -1,6 +1,8 @@
 package com.mulmi.backend.domain.equipment.service;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelUpdateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelUpdateResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelCreateResponseDTO;
 import com.mulmi.backend.domain.equipment.converter.EquipmentModelConverter;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentItemPageResponseDTO;
@@ -11,6 +13,7 @@ import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelPageRe
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelSummaryResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelImageUploadResponseDTO;
 import com.mulmi.backend.domain.equipment.entity.Category;
+import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
 import com.mulmi.backend.domain.equipment.entity.LabelPrefix;
 import com.mulmi.backend.domain.equipment.exception.CategoryException;
@@ -35,15 +38,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -71,9 +77,10 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     @Override
     @Transactional
     public EquipmentModelCreateResponseDTO createEquipmentModel(EquipmentModelCreateRequestDTO dto) {
-        // 0. 접두사 입력 정리
+        // 0. 접두사 입력 정리 + 날짜 순서 검사 (DB 조회 전에 끝낼 수 있는 검사)
         String prefix = normalizePrefixCode(dto.prefixCode());
         String modelName = dto.modelName().trim();
+        validateDateRange(dto.receivedDate(), dto.disposalDate());
 
         // 1. 카테고리 조회
         Category category = categoryRepository.findByIdAndDeletedAtIsNull(dto.categoryId())
@@ -275,10 +282,104 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         return keyword.trim();
     }
 
+    // 모델 수정 : READ_COMMITTED 이유는 기기 일괄 등록과 같음 (잠금 대기 후 기기 존재 검사가 최신 커밋을 봐야 함)
+    @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public EquipmentModelUpdateResponseDTO updateEquipmentModel(Long modelId, EquipmentModelUpdateRequestDTO dto) {
+        String prefix = normalizePrefixCode(dto.prefixCode());
+        String modelName = dto.modelName().trim();
+        validateDateRange(dto.receivedDate(), dto.disposalDate());
+
+        // 1. 폐기되지 않은 모델 조회
+        EquipmentModel model = findActiveModel(modelId);
+
+        // 2. 카테고리 조회 + 접두사 규칙 (등록과 같음)
+        Category category = categoryRepository.findByIdAndDeletedAtIsNull(dto.categoryId())
+                .orElseThrow(() -> new CategoryException(CategoryErrorCode.CATEGORY_NOT_FOUND));
+        if (category.isLabelRequired() && prefix == null) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.LABEL_PREFIX_REQUIRED);
+        }
+        if (!category.isLabelRequired() && prefix != null) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.LABEL_PREFIX_NOT_ALLOWED);
+        }
+        LabelPrefix labelPrefix = null;
+        if (prefix != null) {
+            labelPrefix = labelPrefixRepository.findByCode(prefix)
+                    .orElseThrow(() -> new LabelPrefixException(LabelPrefixErrorCode.LABEL_PREFIX_NOT_FOUND));
+        }
+
+        // 3. 카테고리·접두사가 바뀌면 : 실물 라벨이 붙은 기기가 있으면 막는다
+        //    기존 접두사를 잠가서 같은 접두사로 진행 중인 일괄 등록이 끝난 뒤에 검사한다
+        LabelPrefix currentPrefix = model.getLabelPrefix();
+        boolean categoryChanged = !category.getId().equals(model.getCategory().getId());
+        boolean prefixChanged = !Objects.equals(
+                currentPrefix == null ? null : currentPrefix.getId(),
+                labelPrefix == null ? null : labelPrefix.getId());
+        if (categoryChanged || prefixChanged) {
+            if (currentPrefix != null) {
+                labelPrefixRepository.findWithLockById(currentPrefix.getId());
+            }
+            if (equipmentItemRepository.existsByEquipmentModelIdAndDeletedAtIsNull(model.getId())) {
+                throw new EquipmentModelException(EquipmentModelErrorCode.LABEL_SETTING_LOCKED);
+            }
+        }
+
+        // 4. 이름 중복 검사 (자기 자신 제외)
+        if (equipmentModelRepository.existsByCategoryIdAndNameAndIdNot(category.getId(), modelName, model.getId())) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.DUPLICATE_MODEL);
+        }
+
+        // 5. 반영 : 4번을 동시에 통과한 요청은 DB UNIQUE에서 막히므로 flush로 앞당겨 409로 바꾼다
+        model.update(category, labelPrefix, modelName, dto.components(), dto.description(),
+                dto.specification(), dto.rentalStatus(), dto.receivedDate(), dto.disposalDate());
+        try {
+            equipmentModelRepository.flush();
+        } catch (DataIntegrityViolationException exception) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.DUPLICATE_MODEL);
+        }
+        return new EquipmentModelUpdateResponseDTO(model.getId());
+    }
+
+    // 모델 폐기 : 이미 폐기된 모델을 409로 구분하려고 삭제 여부와 상관없이 조회한다
+    @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public void retireEquipmentModel(Long modelId) {
+        EquipmentModel model = equipmentModelRepository.findById(modelId)
+                .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
+        if (model.getDeletedAt() != null) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.MODEL_ALREADY_RETIRED);
+        }
+
+        // 같은 접두사로 진행 중인 일괄 등록이 끝난 뒤에 기기를 확인한다 (잠금만 걸고 결과는 쓰지 않음)
+        // 이후 일괄 등록은 잠금을 얻은 뒤 모델이 폐기된 것을 보고 멈춘다
+        if (model.getLabelPrefix() != null) {
+            labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId());
+        }
+
+        // 살아 있는 기기를 전부 잠그며 가져와서, 그 목록으로 예약·대여 중인지 본다
+        //  잠금 없이 확인하면 그 사이 대여 신청이 기기를 RESERVED로 바꿔도 폐기가 진행된다 (42 기기 폐기와 같은 문제)
+        //  대여 신청도 기기 행을 잠그므로 둘이 한 줄로 선다
+        List<EquipmentItem> items = equipmentItemRepository.findAllWithLockByEquipmentModelIdAndDeletedAtIsNull(modelId);
+        if (items.stream().anyMatch(item -> EquipmentItemStatus.IN_USE.contains(item.getStatus()))) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.MODEL_IN_USE);
+        }
+
+        // 남은 기기(대여 가능·고장)도 함께 폐기 : 변경 감지로 기기마다 deleted_at UPDATE
+        items.forEach(EquipmentItem::dispose);
+        model.retire();
+    }
+
     // 삭제되지 않은 모델 조회
     private EquipmentModel findActiveModel(Long modelId) {
         return equipmentModelRepository.findByIdAndDeletedAtIsNull(modelId)
                 .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
+    }
+
+    // 입고일 ≤ 폐기일 (같은 날은 허용, 미래 입고일도 허용 — 미리 등록할 수 있음)
+    private void validateDateRange(LocalDate receivedDate, LocalDate disposalDate) {
+        if (receivedDate.isAfter(disposalDate)) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.INVALID_DATE_RANGE);
+        }
     }
 
     // 모델 이미지 검증 : JPG/PNG/WEBP, 5MB 이하

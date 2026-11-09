@@ -21,7 +21,20 @@ public interface EquipmentModelRepository extends JpaRepository<EquipmentModel, 
 
     boolean existsByCategoryIdAndName(Long categoryId, String name);
 
+    // 모델 수정 시 이름 중복 : 자기 자신은 제외 (삭제된 모델은 포함, DB UNIQUE와 같은 기준)
+    boolean existsByCategoryIdAndNameAndIdNot(Long categoryId, String name, Long id);
+
     Optional<EquipmentModel> findByIdAndDeletedAtIsNull(Long id);
+
+    // 잠금 이후 재확인용 : 엔티티가 아니라 값만 받아야 1차 캐시의 옛 객체가 아닌 최신 커밋 값을 읽는다
+    // 폐기된 모델이면 빈 값, 접두사가 없으면 0
+    @Query("""
+            SELECT COALESCE(p.id, 0) FROM EquipmentModel m
+            LEFT JOIN m.labelPrefix p
+            WHERE m.id = :modelId
+              AND m.deletedAt IS NULL
+            """)
+    Optional<Long> findActivePrefixId(@Param("modelId") Long modelId);
 
     // 관리자 모델 목록 : 카테고리·검색어는 null이면 조건 무시
     @Query("""

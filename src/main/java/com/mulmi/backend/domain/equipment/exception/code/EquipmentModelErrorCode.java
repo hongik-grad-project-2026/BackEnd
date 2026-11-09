@@ -27,6 +27,12 @@ public enum EquipmentModelErrorCode implements BaseErrorCode {
             "JPG, PNG, WEBP형식만 가능합니다."
     ),
 
+    INVALID_DATE_RANGE(
+            HttpStatus.BAD_REQUEST,
+            "EQUIPMENTMODEL400_5",
+            "입고일은 폐기일보다 늦을 수 없습니다."
+    ),
+
     MODEL_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "EQUIPMENTMODEL404_1",
@@ -37,6 +43,24 @@ public enum EquipmentModelErrorCode implements BaseErrorCode {
             HttpStatus.CONFLICT,
             "EQUIPMENTMODEL409_1",
             "같은 카테고리에 동일 이름의 모델이 이미 있습니다."
+    ),
+
+    LABEL_SETTING_LOCKED(
+            HttpStatus.CONFLICT,
+            "EQUIPMENTMODEL409_2",
+            "기기가 등록된 모델은 카테고리와 접두사를 바꿀 수 없습니다."
+    ),
+
+    MODEL_IN_USE(
+            HttpStatus.CONFLICT,
+            "EQUIPMENTMODEL409_3",
+            "대여 예정이거나 대여 중인 기기가 있어 폐기할 수 없습니다."
+    ),
+
+    MODEL_ALREADY_RETIRED(
+            HttpStatus.CONFLICT,
+            "EQUIPMENTMODEL409_4",
+            "이미 폐기된 모델입니다."
     ),
 
     MODEL_IMAGE_TOO_LARGE(

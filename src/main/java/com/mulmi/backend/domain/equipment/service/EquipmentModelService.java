@@ -1,6 +1,8 @@
 package com.mulmi.backend.domain.equipment.service;
 
 import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelCreateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.request.EquipmentModelUpdateRequestDTO;
+import com.mulmi.backend.domain.equipment.dto.response.EquipmentModelUpdateResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentItemPageResponseDTO;
 import com.mulmi.backend.domain.equipment.dto.response.AdminEquipmentModelDetailResponseDTO;
 import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
@@ -13,6 +15,12 @@ public interface EquipmentModelService {
 
     // 모델 등록
     EquipmentModelCreateResponseDTO createEquipmentModel(EquipmentModelCreateRequestDTO dto);
+
+    // 모델 수정
+    EquipmentModelUpdateResponseDTO updateEquipmentModel(Long modelId, EquipmentModelUpdateRequestDTO dto);
+
+    // 모델 폐기 (소프트 삭제, 남은 기기도 함께 폐기)
+    void retireEquipmentModel(Long modelId);
 
     // 모델 이미지 등록
     EquipmentModelImageUploadResponseDTO uploadModelImage(Long modelId, MultipartFile image);

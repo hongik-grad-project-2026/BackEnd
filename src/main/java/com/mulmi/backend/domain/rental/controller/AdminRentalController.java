@@ -1,0 +1,168 @@
+package com.mulmi.backend.domain.rental.controller;
+
+import com.mulmi.backend.domain.rental.dto.request.RentalRejectRequestDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalApproveResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalRejectResponseDTO;
+import com.mulmi.backend.domain.rental.exception.code.RentalSuccessCode;
+import com.mulmi.backend.domain.rental.service.AdminRentalService;
+import com.mulmi.backend.global.apiPayload.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import com.mulmi.backend.domain.rental.dto.response.AdminRentalDetailResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.AdminRentalPageResponseDTO;
+import com.mulmi.backend.domain.rental.enums.RentalStatus;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import lombok.RequiredArgsConstructor;
+import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalImageListResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalReturnResponseDTO;
+import com.mulmi.backend.domain.rental.enums.RentalImageType;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import java.util.List;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/admin/rentals")
+@Tag(name = "대여 관리", description = "조교·근로생용 대여 처리 API")
+public class AdminRentalController {
+
+    private final AdminRentalService adminRentalService;
+
+    // 관리자 대여 목록 (명세 50번) : 승인·현황·기록 화면이 status만 바꿔 가며 같이 쓴다
+    //  status는 쉼표로 여러 개 (예 : READY_FOR_PICKUP,RENTING,OVERDUE), 없으면 전체
+    @Operation(summary = "관리자 대여 목록")
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<AdminRentalPageResponseDTO> getAdminRentals(
+            @RequestParam(required = false) List<RentalStatus> status,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTALS_FOUND,
+                adminRentalService.getAdminRentals(status, keyword, page, size)
+        );
+    }
+
+    // 관리자 대여 상세 (명세 51번) : 승인·수령·반납 처리 모달을 열 때 부른다 (연락처·처리자·사진 포함)
+    @Operation(summary = "관리자 대여 상세")
+    @GetMapping("/{rental_id}")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<AdminRentalDetailResponseDTO> getAdminRental(
+            @PathVariable("rental_id") Long rentalId
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_FOUND,
+                adminRentalService.getAdminRental(rentalId)
+        );
+    }
+
+    // 대여 승인 (명세 52번) : 근로생은 승인할 수 없다
+    @Operation(summary = "대여 승인")
+    @PatchMapping("/{rental_id}/approve")
+    @PreAuthorize("hasRole('ASSISTANT')")
+    public ApiResponse<RentalApproveResponseDTO> approveRental(
+            @PathVariable("rental_id") Long rentalId,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_APPROVED,
+                adminRentalService.approveRental(rentalId, userId)
+        );
+    }
+
+    // 수령 처리 (명세 54번) : 사진 필수 카테고리는 55번으로 사진을 먼저 올린다
+    @Operation(summary = "수령 처리")
+    @PatchMapping("/{rental_id}/checkout")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<RentalCheckoutResponseDTO> checkoutRental(
+            @PathVariable("rental_id") Long rentalId,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_CHECKED_OUT,
+                adminRentalService.checkoutRental(rentalId, userId)
+        );
+    }
+
+    // 반납 처리 (명세 57번) : 사진 필수 카테고리는 55번으로 반납 사진을 먼저 올린다
+    @Operation(summary = "반납 처리")
+    @PatchMapping("/{rental_id}/return")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<RentalReturnResponseDTO> returnRental(
+            @PathVariable("rental_id") Long rentalId,
+            @AuthenticationPrincipal Long userId
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_RETURNED,
+                adminRentalService.returnRental(rentalId, userId)
+        );
+    }
+
+    // 사진 조회 (명세 56번) : imageType(PICKUP·RETURN) 없으면 전체, 잘못된 값은 400
+    @Operation(summary = "대여 사진 조회")
+    @GetMapping("/{rental_id}/images")
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<RentalImageListResponseDTO> getRentalImages(
+            @PathVariable("rental_id") Long rentalId,
+            @RequestParam(required = false) RentalImageType imageType
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_IMAGES_FOUND,
+                adminRentalService.getRentalImages(rentalId, imageType)
+        );
+    }
+
+    // 대여 사진 업로드 (명세 55번) : 수령·반납 처리 전에 기기 사진 1장
+    @Operation(summary = "대여 사진 업로드")
+    @PostMapping(value = "/{rental_id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
+    public ApiResponse<RentalImageUploadResponseDTO> uploadRentalImage(
+            @PathVariable("rental_id") Long rentalId,
+            @AuthenticationPrincipal Long userId,
+            @RequestParam("imageType") RentalImageType imageType,
+            @RequestPart("image") MultipartFile image
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_IMAGE_UPLOADED,
+                adminRentalService.uploadRentalImage(rentalId, userId, imageType, image)
+        );
+    }
+
+    // 대여 반려 (명세 53번)
+    @Operation(summary = "대여 반려")
+    @PatchMapping("/{rental_id}/reject")
+    @PreAuthorize("hasRole('ASSISTANT')")
+    public ApiResponse<RentalRejectResponseDTO> rejectRental(
+            @PathVariable("rental_id") Long rentalId,
+            @AuthenticationPrincipal Long userId,
+            @RequestBody @Valid RentalRejectRequestDTO dto
+    ) {
+        return ApiResponse.onSuccess(
+                RentalSuccessCode.RENTAL_REJECTED,
+                adminRentalService.rejectRental(rentalId, userId, dto)
+        );
+    }
+}

@@ -3,9 +3,11 @@ package com.mulmi.backend.domain.user.repository;
 import com.mulmi.backend.domain.user.entity.User;
 import com.mulmi.backend.domain.user.enums.UserRole;
 import com.mulmi.backend.domain.user.enums.UserStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -60,4 +62,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
             @Param("excludeDepartment") String excludeDepartment,
             Pageable pageable
     );
+
+    // 대여 신청: 같은 학생의 동시 신청을 줄 세우기 위해 학생 행을 잠근다. (for update 사용함)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<User> findWithLockById(Long userId);
 }
