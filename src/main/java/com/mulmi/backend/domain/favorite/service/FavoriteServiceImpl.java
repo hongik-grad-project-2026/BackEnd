@@ -41,18 +41,10 @@ public class FavoriteServiceImpl implements FavoriteService {
     @Override
     @Transactional
     public void addFavorite(Long userId, Long equipmentModelId) {
-        User user = findActiveUser(userId);
-        EquipmentModel equipmentModel = equipmentModelRepository.findByIdAndDeletedAtIsNull(equipmentModelId)
+        findActiveUser(userId);
+        equipmentModelRepository.findByIdAndDeletedAtIsNull(equipmentModelId)
                 .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
-
-        if (favoriteRepository.existsByUserIdAndEquipmentModelId(userId, equipmentModelId)) {
-            return;
-        }
-
-        favoriteRepository.save(Favorite.builder()
-                .user(user)
-                .equipmentModel(equipmentModel)
-                .build());
+        favoriteRepository.insertIfAbsent(userId, equipmentModelId);
     }
 
     @Override

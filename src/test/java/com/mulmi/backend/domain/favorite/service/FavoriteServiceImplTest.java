@@ -18,7 +18,6 @@ import com.mulmi.backend.domain.user.repository.UserRepository;
 import com.mulmi.backend.global.storage.S3StorageService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -33,7 +32,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -63,14 +61,10 @@ class FavoriteServiceImplTest {
         EquipmentModel model = createEquipmentModel();
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
         given(equipmentModelRepository.findByIdAndDeletedAtIsNull(10L)).willReturn(Optional.of(model));
-        given(favoriteRepository.existsByUserIdAndEquipmentModelId(1L, 10L)).willReturn(false);
 
         favoriteService.addFavorite(1L, 10L);
 
-        ArgumentCaptor<Favorite> captor = ArgumentCaptor.forClass(Favorite.class);
-        verify(favoriteRepository).save(captor.capture());
-        assertThat(captor.getValue().getUser()).isSameAs(user);
-        assertThat(captor.getValue().getEquipmentModel()).isSameAs(model);
+        verify(favoriteRepository).insertIfAbsent(1L, 10L);
     }
 
     @Test
@@ -79,11 +73,11 @@ class FavoriteServiceImplTest {
         EquipmentModel model = createEquipmentModel();
         given(userRepository.findById(1L)).willReturn(Optional.of(user));
         given(equipmentModelRepository.findByIdAndDeletedAtIsNull(10L)).willReturn(Optional.of(model));
-        given(favoriteRepository.existsByUserIdAndEquipmentModelId(1L, 10L)).willReturn(true);
+        given(favoriteRepository.insertIfAbsent(1L, 10L)).willReturn(0);
 
         favoriteService.addFavorite(1L, 10L);
 
-        verify(favoriteRepository, never()).save(org.mockito.ArgumentMatchers.any(Favorite.class));
+        verify(favoriteRepository).insertIfAbsent(1L, 10L);
     }
 
     @Test

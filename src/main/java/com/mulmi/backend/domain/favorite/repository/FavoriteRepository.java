@@ -13,9 +13,18 @@ import java.util.Optional;
 
 public interface FavoriteRepository extends JpaRepository<Favorite, Long> {
 
-    boolean existsByUserIdAndEquipmentModelId(Long userId, Long equipmentModelId);
-
     Optional<Favorite> findByUserIdAndEquipmentModelId(Long userId, Long equipmentModelId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            INSERT INTO favorites (user_id, equipment_model_id, created_at, updated_at)
+            VALUES (:userId, :equipmentModelId, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))
+            ON DUPLICATE KEY UPDATE id = id
+            """, nativeQuery = true)
+    int insertIfAbsent(
+            @Param("userId") Long userId,
+            @Param("equipmentModelId") Long equipmentModelId
+    );
 
     @Query(
             value = """
