@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -98,6 +99,7 @@ public class AdminEquipmentModelController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER', 'STUDENT')")
     public ApiResponse<AdminEquipmentModelPageResponseDTO> getModelPage(
+            @AuthenticationPrincipal Long userId,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
@@ -105,7 +107,7 @@ public class AdminEquipmentModelController {
     ) {
         return ApiResponse.onSuccess(
                 EquipmentModelSuccessCode.MODELS_FOUND,
-                equipmentModelService.getAdminEquipmentModels(categoryId, keyword, page, size)
+                equipmentModelService.getAdminEquipmentModels(userId, categoryId, keyword, page, size)
         );
     }
 
