@@ -122,9 +122,9 @@ public class RentalServiceImpl implements RentalService {
             throw new RentalException(RentalErrorCode.DUPLICATE_RENTAL);
         }
 
-        // 8. 기기 잠금 (FOR UPDATE) — 대여 가능 기기 중 id가 가장 작은 1대, 없으면 409
+        // 8. 기기 잠금 (FOR UPDATE) — 대여 가능 기기 중 라벨 번호가 가장 큰(최신) 1대, 없으면 409
         EquipmentItem item = equipmentItemRepository
-                .findFirstByEquipmentModelIdAndStatusAndDeletedAtIsNullOrderByIdAsc(
+                .findFirstByEquipmentModelIdAndStatusAndDeletedAtIsNullOrderByLabelNumberDescIdAsc(
                         model.getId(), EquipmentItemStatus.AVAILABLE)
                 .orElseThrow(() -> new RentalException(RentalErrorCode.OUT_OF_STOCK));
 
