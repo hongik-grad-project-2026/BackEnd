@@ -157,6 +157,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
                 rental.getExpectedPickupDate(),
                 rental.getExpectedReturnAt(),
                 rental.getActualPickupAt(),
+                rental.getActualReturnAt(),
                 rental.getCreatedAt()
         );
     }
