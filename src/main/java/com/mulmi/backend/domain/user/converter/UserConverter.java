@@ -60,7 +60,10 @@ public class UserConverter {
         );
     }
 
-    public static AdminUserSummaryResponseDTO toAdminUserSummaryResponseDTO(User user) {
+    public static AdminUserSummaryResponseDTO toAdminUserSummaryResponseDTO(
+            User user,
+            String profileImageUrl
+    ) {
         return new AdminUserSummaryResponseDTO(
                 user.getId(),
                 user.getName(),
@@ -69,6 +72,7 @@ public class UserConverter {
                 user.getPhoneNumber(),
                 user.getCollege(),
                 user.getDepartment(),
+                profileImageUrl,
                 user.getStatus(),
                 user.getCreatedAt()
         );

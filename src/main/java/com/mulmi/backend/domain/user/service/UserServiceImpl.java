@@ -171,8 +171,11 @@ public class UserServiceImpl implements UserService {
                 normalize(excludeDepartment),
                 pageable
         );
-        Page<AdminUserSummaryResponseDTO> responsePage = users.map(
-                UserConverter::toAdminUserSummaryResponseDTO
+        Page<AdminUserSummaryResponseDTO> responsePage = users.map(user ->
+                UserConverter.toAdminUserSummaryResponseDTO(
+                        user,
+                        s3StorageService.createDownloadUrl(user.getProfileImageUrl())
+                )
         );
 
         return AdminUserPageResponseDTO.from(responsePage);
