@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -26,7 +27,11 @@ import org.hibernate.type.SqlTypes;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Table(name = "equipment_item")
+// 대여 신청 배정 쿼리(모델의 대여 가능 기기 중 라벨 최대 1대 FOR UPDATE)용 인덱스
+// status가 가운데에 있어야 대여 나간 기기를 건너뛰지 않고 AVAILABLE 구간의 끝으로 바로 간다
+@Table(name = "equipment_item",
+        indexes = @Index(name = "idx_equipment_item_model_status_label",
+                columnList = "model_id, status, label_number"))
 public class EquipmentItem extends BaseEntity {
 
     @Id
