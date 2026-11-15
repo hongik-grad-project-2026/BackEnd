@@ -174,7 +174,7 @@ public class UserServiceImpl implements UserService {
         Page<AdminUserSummaryResponseDTO> responsePage = users.map(user ->
                 UserConverter.toAdminUserSummaryResponseDTO(
                         user,
-                        s3StorageService.createDownloadUrl(user.getProfileImageUrl())
+                        createProfileImageUrl(user)
                 )
         );
 
@@ -271,15 +271,29 @@ public class UserServiceImpl implements UserService {
     private MyInfoResponseDTO toMyInfoResponseDTO(User user) {
         return UserConverter.toMyInfoResponseDTO(
                 user,
-                s3StorageService.createDownloadUrl(user.getProfileImageUrl())
+                createProfileImageUrl(user)
         );
     }
 
     private AdminUserDetailResponseDTO toAdminUserDetailResponseDTO(User user) {
         return UserConverter.toAdminUserDetailResponseDTO(
                 user,
-                s3StorageService.createDownloadUrl(user.getProfileImageUrl())
+                createProfileImageUrl(user)
         );
+    }
+
+    private String createProfileImageUrl(User user) {
+        try {
+            return s3StorageService.createDownloadUrl(user.getProfileImageUrl());
+        } catch (RuntimeException exception) {
+            log.warn(
+                    "프로필 이미지 URL 생성 실패: userId={}, objectKey={}",
+                    user.getId(),
+                    user.getProfileImageUrl(),
+                    exception
+            );
+            return null;
+        }
     }
 
     //중복 검사 메서드
