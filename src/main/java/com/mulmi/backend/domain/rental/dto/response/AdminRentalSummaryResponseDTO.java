@@ -24,6 +24,7 @@ public record AdminRentalSummaryResponseDTO(
         LocalDate expectedPickupDate,
         LocalDateTime expectedReturnAt,
         LocalDateTime actualPickupAt,   // 대여현황 화면의 "수령일" (54번에서 기록)
+        LocalDateTime actualReturnAt,   // 대여기록 화면의 "반납일" (57번에서 기록, 반납 전이면 null)
         LocalDateTime createdAt
 ) {
 }
