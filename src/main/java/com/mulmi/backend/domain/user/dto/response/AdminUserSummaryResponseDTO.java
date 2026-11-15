@@ -12,6 +12,7 @@ public record AdminUserSummaryResponseDTO(
         String phoneNumber,
         String college,
         String department,
+        String profileImageUrl,
         UserStatus status,
         LocalDateTime createdAt
 ) {

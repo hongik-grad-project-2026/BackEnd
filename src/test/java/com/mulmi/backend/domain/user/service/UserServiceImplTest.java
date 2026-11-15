@@ -149,6 +149,7 @@ class UserServiceImplTest {
     @Test
     void getUsersReturnsFilteredStudentPage() {
         User user = createUser();
+        user.updateProfileImage("profile-images/1/profile.png");
         PageRequest pageable = PageRequest.of(
                 0,
                 20,
@@ -163,6 +164,8 @@ class UserServiceImplTest {
                 null,
                 pageable
         )).willReturn(new PageImpl<>(List.of(user), pageable, 1));
+        given(s3StorageService.createDownloadUrl("profile-images/1/profile.png"))
+                .willReturn("https://example.com/profile.png");
 
         AdminUserPageResponseDTO result = userService.getUsers(
                 " 홍 ",
@@ -177,6 +180,8 @@ class UserServiceImplTest {
         assertThat(result.users()).hasSize(1);
         assertThat(result.users().get(0).userId()).isEqualTo(1L);
         assertThat(result.users().get(0).studentId()).isEqualTo("C123456");
+        assertThat(result.users().get(0).profileImageUrl())
+                .isEqualTo("https://example.com/profile.png");
         assertThat(result.page()).isZero();
         assertThat(result.size()).isEqualTo(20);
         assertThat(result.totalElements()).isEqualTo(1);
@@ -212,6 +217,41 @@ class UserServiceImplTest {
                 null,
                 pageable
         );
+    }
+
+    @Test
+    void getUsersReturnsPageWithoutProfileImageWhenUrlCreationFails() {
+        User user = createUser();
+        user.updateProfileImage("profile-images/1/profile.png");
+        PageRequest pageable = PageRequest.of(
+                0,
+                20,
+                Sort.by(Sort.Direction.DESC, "id")
+        );
+        given(userRepository.findUsers(
+                UserRole.STUDENT,
+                null,
+                null,
+                null,
+                null,
+                null,
+                pageable
+        )).willReturn(new PageImpl<>(List.of(user), pageable, 1));
+        given(s3StorageService.createDownloadUrl("profile-images/1/profile.png"))
+                .willThrow(new IllegalStateException("S3 presign failed"));
+
+        AdminUserPageResponseDTO result = userService.getUsers(
+                null,
+                null,
+                null,
+                null,
+                null,
+                0,
+                20
+        );
+
+        assertThat(result.users()).hasSize(1);
+        assertThat(result.users().get(0).profileImageUrl()).isNull();
     }
 
     @Test
