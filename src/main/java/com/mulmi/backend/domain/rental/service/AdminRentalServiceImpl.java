@@ -150,6 +150,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
                 model.getCategory().getName(),
                 model.getId(),
                 model.getName(),
+                s3StorageService.createDownloadUrl(model.getModelImageUrl()),
                 rental.getEquipmentItem().getLabelCode(),
                 rental.getApplicationType(),
                 rental.getDisplayStatus(now),

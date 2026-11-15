@@ -17,6 +17,7 @@ public record AdminRentalSummaryResponseDTO(
         String categoryName,
         Long modelId,
         String modelName,
+        String modelImageUrl,           // S3 조회용 URL (DB에는 키가 저장됨, 이미지 없으면 null)
         String labelCode,
         ApplicationType applicationType,
         RentalStatus status,
