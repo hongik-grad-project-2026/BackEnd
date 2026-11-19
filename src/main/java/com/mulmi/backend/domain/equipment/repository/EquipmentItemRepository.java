@@ -83,6 +83,17 @@ public interface EquipmentItemRepository extends JpaRepository<EquipmentItem, Lo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<EquipmentItem> findAllWithLockByEquipmentModelIdAndDeletedAtIsNull(Long modelId);
 
+    // 접두사 없는 번호 중 가장 큰 번호 (자동 발급용). 폐기된 기기·폐기된 모델도 포함 — 폐기 번호를 다시 주지 않기 위해
+    //  카테고리가 아니라 코드 형식으로 거른다 : 중복 검사(label_code UNIQUE)가 코드 기준이므로 범위를 똑같이 맞춘다
+    //  접두사 있는 코드는 모두 '-'를 포함(M-007)하므로 '-' 없는 코드가 곧 접두사 없는 번호 공간이다
+    //  (접두사 없는 카테고리가 여럿이어도, 기기가 폐기된 채 모델이 다른 카테고리로 옮겨 가도 빠지지 않는다)
+    @Query("""
+            SELECT MAX(i.labelNumber)
+            FROM EquipmentItem i
+            WHERE i.labelCode NOT LIKE '%-%'
+            """)
+    Optional<Integer> findMaxUnprefixedLabelNumber();
+
     // 일괄 등록할 라벨 중 이미 쓰인 게 하나라도 있는지 (폐기된 기기 포함 — 라벨은 재사용하지 않음)
     boolean existsByLabelCodeIn(Collection<String> labelCodes);
 
