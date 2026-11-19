@@ -26,6 +26,7 @@ import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import com.mulmi.backend.domain.rental.exception.RentalException;
 import com.mulmi.backend.domain.rental.exception.code.RentalErrorCode;
 import com.mulmi.backend.domain.rental.repository.RentalRepository;
+import com.mulmi.backend.domain.rental.stock.RentalStockCounter;
 import com.mulmi.backend.domain.semester.entity.Semester;
 import com.mulmi.backend.domain.semester.repository.SemesterRepository;
 import com.mulmi.backend.domain.user.entity.User;
@@ -59,6 +60,7 @@ public class RentalServiceImpl implements RentalService {
     private final UserRepository userRepository;
     private final S3StorageService s3StorageService;
     private final RentalImageRepository rentalImageRepository;
+    private final RentalStockCounter rentalStockCounter;
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
 
@@ -261,6 +263,8 @@ public class RentalServiceImpl implements RentalService {
 
         // 4. 신청 때 예약한 기기를 재고로 되돌린다 (반려 53과 같음 — 두 상태 모두 기기는 RESERVED)
         rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+        // 커밋되면 Redis 재고도 +1 (롤백되면 안 늘어남)
+        rentalStockCounter.addAfterCommit(rental.getEquipmentModel().getId(), 1);
 
         // 5. 취소 기록
         rental.cancel(dto.cancelReason(), now);

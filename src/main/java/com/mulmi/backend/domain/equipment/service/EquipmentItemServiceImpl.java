@@ -17,6 +17,7 @@ import com.mulmi.backend.domain.equipment.exception.code.LabelPrefixErrorCode;
 import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
+import com.mulmi.backend.domain.rental.stock.RentalStockCounter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,7 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
     private final EquipmentItemRepository equipmentItemRepository;
     private final EquipmentModelRepository equipmentModelRepository;
     private final LabelPrefixRepository labelPrefixRepository;
+    private final RentalStockCounter rentalStockCounter;
 
     // READ_COMMITTED : MySQL 기본(REPEATABLE READ)이면 잠금을 기다린 뒤의 중복 검사가
     // 트랜잭션 첫 조회 시점 스냅샷을 읽어 앞 요청이 커밋한 라벨을 보지 못한다
@@ -110,6 +112,9 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
             prefix.raiseLastNumberTo(dto.labelStart() + dto.quantity() - 1);
         }
 
+        // 8. 대여 가능으로 등록했으면 Redis 재고 +수량 (고장으로 등록했으면 0)
+        rentalStockCounter.addAfterCommit(model.getId(), (long) dto.quantity() * availableCount(dto.status()));
+
         String firstLabelCode = labelRequired ? labelCodes.get(0) : null;
         String lastLabelCode = labelRequired ? labelCodes.get(labelCodes.size() - 1) : null;
         return new EquipmentItemCreateResponseDTO(model.getId(), dto.quantity(), firstLabelCode, lastLabelCode);
@@ -149,6 +154,8 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
         }
 
         // 3. 상태·메모 변경 (메모는 null이면 유지)
+        //    Redis 재고 변화 : 대여 가능→고장 -1, 고장→대여 가능 +1, 그대로면 0 (바꾸기 전 상태로 계산)
+        int stockDelta = availableCount(dto.status()) - availableCount(item.getStatus());
         item.changeStatus(dto.status());
         if (dto.memo() != null) {
             item.changeMemo(dto.memo());
@@ -160,6 +167,7 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
         } catch (DataIntegrityViolationException exception) {
             throw new EquipmentItemException(EquipmentItemErrorCode.DUPLICATE_LABEL);
         }
+        rentalStockCounter.addAfterCommit(item.getEquipmentModel().getId(), stockDelta);
 
         return new EquipmentItemUpdateResponseDTO(
                 item.getId(), item.getLabelCode(), item.getStatus(), item.getMemo());
@@ -184,6 +192,14 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
 
         // 라벨 번호와 lastNumber는 그대로 둔다 (폐기된 라벨은 재사용하지 않음)
         item.dispose();
+
+        // 대여 가능 기기였으면 Redis 재고 -1 (고장 기기였으면 변화 없음)
+        rentalStockCounter.addAfterCommit(item.getEquipmentModel().getId(), -availableCount(item.getStatus()));
+    }
+
+    // Redis 재고는 "폐기 안 된 AVAILABLE 기기 수" : 이 상태가 재고에 몇 대로 잡히는지
+    private static int availableCount(EquipmentItemStatus status) {
+        return status == EquipmentItemStatus.AVAILABLE ? 1 : 0;
     }
 
     // 라벨 코드 형식은 이 메서드 하나에서만 만든다 (검사용·저장용이 어긋나지 않게)
