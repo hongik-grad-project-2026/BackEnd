@@ -9,28 +9,18 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum EquipmentItemErrorCode implements BaseErrorCode {
 
+    // 400_2(라벨 시작 번호 입력 불가)·400_4(라벨 번호 입력 불가)는 기타도 번호를 쓰게 되며 삭제 (11-19)
+    //  번호를 당겨 매기지 않는다 : 이미 받은 코드 값의 뜻이 바뀌지 않게
     LABEL_START_REQUIRED(
             HttpStatus.BAD_REQUEST,
             "EQUIPMENTITEM400_1",
-            "라벨을 쓰는 카테고리는 라벨 시작 번호가 필요합니다."
-    ),
-
-    LABEL_START_NOT_ALLOWED(
-            HttpStatus.BAD_REQUEST,
-            "EQUIPMENTITEM400_2",
-            "라벨을 쓰지 않는 카테고리에는 라벨 시작 번호를 입력할 수 없습니다."
+            "라벨 시작 번호가 필요합니다."
     ),
 
     INVALID_ITEM_STATUS(
             HttpStatus.BAD_REQUEST,
             "EQUIPMENTITEM400_3",
             "대여 가능 또는 고장 상태만 지정할 수 있습니다."
-    ),
-
-    LABEL_NUMBER_NOT_ALLOWED(
-            HttpStatus.BAD_REQUEST,
-            "EQUIPMENTITEM400_4",
-            "라벨을 쓰지 않는 카테고리의 기기에는 라벨 번호를 입력할 수 없습니다."
     ),
 
     ITEM_NOT_FOUND(

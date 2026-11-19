@@ -47,18 +47,17 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
         EquipmentModel model = equipmentModelRepository.findByIdAndDeletedAtIsNull(dto.modelId())
                 .orElseThrow(()-> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
 
-        // 2. 카테고리 라벨 사용 여부로 분기 + labelStart 필수/금지 검사
-        boolean labelRequired = model.getCategory().isLabelRequired();
-        if (labelRequired && dto.labelStart() == null) {
+        // 2. 시작 번호는 모든 카테고리 필수 (기타도 번호를 쓴다 — 11-19 결정)
+        //    isLabelRequired()는 이제 "접두사를 쓰는가"를 뜻한다 (노트북·태블릿·보조배터리 = 접두사, 기타 = 번호만)
+        if (dto.labelStart() == null) {
             throw new EquipmentItemException(EquipmentItemErrorCode.LABEL_START_REQUIRED);
         }
-        if (!labelRequired && dto.labelStart() != null) {
-            throw new EquipmentItemException(EquipmentItemErrorCode.LABEL_START_NOT_ALLOWED);
-        }
+        boolean hasPrefix = model.getCategory().isLabelRequired();
 
-        // 3. (라벨 사용) 접두사 행 잠금
+        // 3. (접두사 사용) 접두사 행 잠금 : lastNumber 갱신과 모델 변경 확인용
+        //    기타는 lastNumber가 없고, 동시에 같은 번호가 들어오면 DB UNIQUE가 막으므로 잠그지 않는다
         LabelPrefix prefix = null;
-        if (labelRequired) {
+        if (hasPrefix) {
             prefix = labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId())
                     .orElseThrow(() -> new LabelPrefixException(LabelPrefixErrorCode.LABEL_PREFIX_NOT_FOUND));
 
@@ -71,32 +70,27 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
             }
         }
 
-        // 4. 라벨 코드 목록 생성
+        // 4. 라벨 코드 목록 생성 (접두사 있으면 M-041, 기타면 041)
         List<String> labelCodes = new ArrayList<>();
-        if (labelRequired) {
-            for (int i = 0; i < dto.quantity(); i++) {
-                int number = dto.labelStart() + i;
-                labelCodes.add(toLabelCode(prefix, number));
-            }
+        for (int i = 0; i < dto.quantity(); i++) {
+            labelCodes.add(toLabelCode(prefix, dto.labelStart() + i));
         }
 
-        // 5. 라벨 중복 검사 (폐기 포함)
-        if (labelRequired && equipmentItemRepository.existsByLabelCodeIn(labelCodes)) {
+        // 5. 라벨 중복 검사 (폐기 포함 → 폐기된 번호는 재사용 불가)
+        if (equipmentItemRepository.existsByLabelCodeIn(labelCodes)) {
             throw new EquipmentItemException(EquipmentItemErrorCode.DUPLICATE_LABEL);
         }
 
         // 6. 기기 생성 후 saveAll
         List<EquipmentItem> items = new ArrayList<>();
         for (int i = 0; i < dto.quantity(); i++) {
-            EquipmentItem.EquipmentItemBuilder builder = EquipmentItem.builder()
+            items.add(EquipmentItem.builder()
                     .equipmentModel(model)
                     .status(dto.status())
-                    .memo(dto.memo());
-            if (labelRequired) {
-                builder.labelNumber(dto.labelStart() + i)
-                        .labelCode(labelCodes.get(i));
-            }
-            items.add(builder.build());
+                    .memo(dto.memo())
+                    .labelNumber(dto.labelStart() + i)
+                    .labelCode(labelCodes.get(i))
+                    .build());
         }
         // 5번 검사를 빠져나간 경우는 DB UNIQUE에서 막히므로 여기서 409로 바꾼다
         try {
@@ -105,14 +99,13 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
             throw new EquipmentItemException(EquipmentItemErrorCode.DUPLICATE_LABEL);
         }
 
-        // 7. (라벨 사용) lastNumber 갱신
-        if (labelRequired) {
+        // 7. (접두사 사용) lastNumber 갱신
+        if (hasPrefix) {
             prefix.raiseLastNumberTo(dto.labelStart() + dto.quantity() - 1);
         }
 
-        String firstLabelCode = labelRequired ? labelCodes.get(0) : null;
-        String lastLabelCode = labelRequired ? labelCodes.get(labelCodes.size() - 1) : null;
-        return new EquipmentItemCreateResponseDTO(model.getId(), dto.quantity(), firstLabelCode, lastLabelCode);
+        return new EquipmentItemCreateResponseDTO(model.getId(), dto.quantity(),
+                labelCodes.get(0), labelCodes.get(labelCodes.size() - 1));
     }
 
     // 기기 정보 수정 : 라벨을 바꿀 때만 접두사를 잠근다 (격리 수준 이유는 일괄 등록과 같음)
@@ -132,20 +125,23 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
 
         // 2. 라벨 번호가 바뀔 때만 : 같은 번호면 자기 자신과 겹쳐 409가 나므로 건너뛴다
         Integer newNumber = dto.labelNumber();
+        //    기타도 번호 수정 가능 (11-19 결정). 접두사 잠금·lastNumber 갱신은 접두사가 있을 때만
         if (newNumber != null && !newNumber.equals(item.getLabelNumber())) {
             EquipmentModel model = item.getEquipmentModel();
-            if (!model.getCategory().isLabelRequired()) {
-                throw new EquipmentItemException(EquipmentItemErrorCode.LABEL_NUMBER_NOT_ALLOWED);
+            LabelPrefix prefix = null;
+            if (model.getCategory().isLabelRequired()) {
+                prefix = labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId())
+                        .orElseThrow(() -> new LabelPrefixException(LabelPrefixErrorCode.LABEL_PREFIX_NOT_FOUND));
             }
-            LabelPrefix prefix = labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId())
-                    .orElseThrow(() -> new LabelPrefixException(LabelPrefixErrorCode.LABEL_PREFIX_NOT_FOUND));
 
             String newCode = toLabelCode(prefix, newNumber);
             if (equipmentItemRepository.existsByLabelCodeIn(List.of(newCode))) {
                 throw new EquipmentItemException(EquipmentItemErrorCode.DUPLICATE_LABEL);
             }
             item.changeLabel(newNumber, newCode);
-            prefix.raiseLastNumberTo(newNumber);
+            if (prefix != null) {
+                prefix.raiseLastNumberTo(newNumber);
+            }
         }
 
         // 3. 상태·메모 변경 (메모는 null이면 유지)
@@ -187,7 +183,11 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
     }
 
     // 라벨 코드 형식은 이 메서드 하나에서만 만든다 (검사용·저장용이 어긋나지 않게)
+    // 접두사 없음(기타) → "007" : "M-007"과 절대 겹치지 않으므로 label_code UNIQUE가 곧 기타 안 중복 금지가 된다
     private String toLabelCode(LabelPrefix prefix, int number) {
+        if (prefix == null) {
+            return String.format("%03d", number);
+        }
         return String.format("%s-%03d", prefix.getCode(), number);
     }
 
