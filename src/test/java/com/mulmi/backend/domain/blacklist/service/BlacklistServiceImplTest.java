@@ -8,6 +8,17 @@ import com.mulmi.backend.domain.blacklist.enums.BlacklistReasonType;
 import com.mulmi.backend.domain.blacklist.exception.BlacklistException;
 import com.mulmi.backend.domain.blacklist.exception.code.BlacklistErrorCode;
 import com.mulmi.backend.domain.blacklist.repository.BlacklistRepository;
+import com.mulmi.backend.domain.equipment.entity.Category;
+import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
+import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
+import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
+import com.mulmi.backend.domain.rental.entity.Rental;
+import com.mulmi.backend.domain.rental.enums.ApplicationType;
+import com.mulmi.backend.domain.rental.enums.CancelReasonType;
+import com.mulmi.backend.domain.rental.enums.RentalStatus;
+import com.mulmi.backend.domain.rental.exception.RentalException;
+import com.mulmi.backend.domain.rental.exception.code.RentalErrorCode;
+import com.mulmi.backend.domain.rental.repository.RentalRepository;
 import com.mulmi.backend.domain.semester.entity.Semester;
 import com.mulmi.backend.domain.semester.repository.SemesterRepository;
 import com.mulmi.backend.domain.user.entity.User;
@@ -24,6 +35,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,6 +56,9 @@ class BlacklistServiceImplTest {
     @Mock
     private SemesterRepository semesterRepository;
 
+    @Mock
+    private RentalRepository rentalRepository;
+
     @InjectMocks
     private BlacklistServiceImpl blacklistService;
 
@@ -52,7 +67,7 @@ class BlacklistServiceImplTest {
         User student = user(1L, UserRole.STUDENT);
         User administrator = user(2L, UserRole.ASSISTANT);
         Semester semester = semester();
-        given(userRepository.findById(1L)).willReturn(Optional.of(student));
+        given(userRepository.findWithLockById(1L)).willReturn(Optional.of(student));
         given(userRepository.findById(2L)).willReturn(Optional.of(administrator));
         given(semesterRepository.findById(10L)).willReturn(Optional.of(semester));
         given(blacklistRepository.save(org.mockito.ArgumentMatchers.any(Blacklist.class)))
@@ -76,7 +91,7 @@ class BlacklistServiceImplTest {
 
     @Test
     void registerRejectsDuplicateActiveRestrictionInSameSemester() {
-        given(userRepository.findById(1L)).willReturn(Optional.of(user(1L, UserRole.STUDENT)));
+        given(userRepository.findWithLockById(1L)).willReturn(Optional.of(user(1L, UserRole.STUDENT)));
         given(userRepository.findById(2L)).willReturn(Optional.of(user(2L, UserRole.ASSISTANT)));
         given(semesterRepository.findById(10L)).willReturn(Optional.of(semester()));
         given(blacklistRepository.existsByUserIdAndSemesterIdAndReleasedAtIsNull(1L, 10L))
@@ -154,6 +169,72 @@ class BlacklistServiceImplTest {
                 .isEqualTo(BlacklistErrorCode.BLACKLIST_ALREADY_RELEASED);
     }
 
+    @Test
+    void validateRentalEligibilityRejectsActiveSemesterRestriction() {
+        given(blacklistRepository.existsByUserIdAndSemesterIdAndReleasedAtIsNull(1L, 10L))
+                .willReturn(true);
+
+        assertThatThrownBy(() -> blacklistService.validateRentalEligibility(1L, 10L))
+                .isInstanceOf(RentalException.class)
+                .extracting("code")
+                .isEqualTo(RentalErrorCode.BLACKLISTED_USER);
+    }
+
+    @Test
+    void registerNoShowCreatesRestrictionAndCancelsOtherUncollectedRentals() {
+        Semester semester = semester();
+        User student = user(1L, UserRole.STUDENT);
+        EquipmentItem sourceItem = item(100L, EquipmentItemStatus.AVAILABLE);
+        Rental noShow = rental(200L, student, semester, sourceItem, RentalStatus.NO_SHOW);
+        EquipmentItem reservedItem = item(101L, EquipmentItemStatus.RESERVED);
+        Rental pending = rental(201L, student, semester, reservedItem, RentalStatus.PENDING_APPROVAL);
+        LocalDateTime now = LocalDateTime.of(2026, 9, 15, 20, 1);
+        given(userRepository.findWithLockById(1L)).willReturn(Optional.of(student));
+        given(rentalRepository.findAllByUserIdAndSemesterIdAndStatusIn(
+                org.mockito.ArgumentMatchers.eq(1L),
+                org.mockito.ArgumentMatchers.eq(10L),
+                org.mockito.ArgumentMatchers.anyCollection()
+        )).willReturn(List.of(pending));
+
+        blacklistService.registerNoShow(noShow, now);
+
+        ArgumentCaptor<Blacklist> captor = ArgumentCaptor.forClass(Blacklist.class);
+        verify(blacklistRepository).save(captor.capture());
+        assertThat(captor.getValue().getReasonType()).isEqualTo(BlacklistReasonType.NO_SHOW);
+        assertThat(captor.getValue().getSemester()).isSameAs(semester);
+        assertThat(captor.getValue().getRental()).isSameAs(noShow);
+        assertThat(pending.getStatus()).isEqualTo(RentalStatus.CANCELED);
+        assertThat(pending.getCancelReason()).isEqualTo(CancelReasonType.BLACKLISTED);
+        assertThat(reservedItem.getStatus()).isEqualTo(EquipmentItemStatus.AVAILABLE);
+    }
+
+    @Test
+    void registerOverdueTargetsNextSemester() {
+        Semester current = semester();
+        Semester next = Semester.builder()
+                .id(11L)
+                .name("2027-1")
+                .startDate(LocalDate.of(2027, 3, 1))
+                .build();
+        Rental overdue = rental(
+                200L,
+                user(1L, UserRole.STUDENT),
+                current,
+                item(100L, EquipmentItemStatus.AVAILABLE),
+                RentalStatus.RETURNED
+        );
+        given(semesterRepository.findFirstByStartDateGreaterThanOrderByStartDateAsc(current.getStartDate()))
+                .willReturn(Optional.of(next));
+        given(userRepository.findWithLockById(1L)).willReturn(Optional.of(overdue.getUser()));
+
+        blacklistService.registerOverdue(overdue, LocalDateTime.of(2027, 2, 1, 10, 0));
+
+        ArgumentCaptor<Blacklist> captor = ArgumentCaptor.forClass(Blacklist.class);
+        verify(blacklistRepository).save(captor.capture());
+        assertThat(captor.getValue().getReasonType()).isEqualTo(BlacklistReasonType.OVERDUE);
+        assertThat(captor.getValue().getSemester()).isSameAs(next);
+    }
+
     private Semester semester() {
         return Semester.builder()
                 .id(10L)
@@ -173,6 +254,40 @@ class BlacklistServiceImplTest {
                 .phoneNumber("01012345678")
                 .role(role)
                 .status(UserStatus.ACTIVE)
+                .build();
+    }
+
+    private EquipmentItem item(Long id, EquipmentItemStatus status) {
+        EquipmentModel model = EquipmentModel.builder()
+                .id(50L)
+                .name("테스트 모델")
+                .category(Category.builder().id(5L).name("노트북").build())
+                .build();
+        return EquipmentItem.builder()
+                .id(id)
+                .equipmentModel(model)
+                .labelCode("M-" + id)
+                .status(status)
+                .build();
+    }
+
+    private Rental rental(
+            Long id,
+            User student,
+            Semester semester,
+            EquipmentItem item,
+            RentalStatus status
+    ) {
+        return Rental.builder()
+                .id(id)
+                .user(student)
+                .equipmentModel(item.getEquipmentModel())
+                .equipmentItem(item)
+                .semester(semester)
+                .applicationType(ApplicationType.ON_DEMAND)
+                .purpose("테스트")
+                .status(status)
+                .expectedPickupDate(LocalDate.of(2026, 9, 10))
                 .build();
     }
 }

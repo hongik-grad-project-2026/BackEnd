@@ -8,6 +8,13 @@ import com.mulmi.backend.domain.blacklist.enums.BlacklistReasonType;
 import com.mulmi.backend.domain.blacklist.exception.BlacklistException;
 import com.mulmi.backend.domain.blacklist.exception.code.BlacklistErrorCode;
 import com.mulmi.backend.domain.blacklist.repository.BlacklistRepository;
+import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
+import com.mulmi.backend.domain.rental.entity.Rental;
+import com.mulmi.backend.domain.rental.enums.CancelReasonType;
+import com.mulmi.backend.domain.rental.enums.RentalStatus;
+import com.mulmi.backend.domain.rental.exception.RentalException;
+import com.mulmi.backend.domain.rental.exception.code.RentalErrorCode;
+import com.mulmi.backend.domain.rental.repository.RentalRepository;
 import com.mulmi.backend.domain.semester.entity.Semester;
 import com.mulmi.backend.domain.semester.repository.SemesterRepository;
 import com.mulmi.backend.domain.user.entity.User;
@@ -23,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +42,7 @@ public class BlacklistServiceImpl implements BlacklistService {
     private final BlacklistRepository blacklistRepository;
     private final UserRepository userRepository;
     private final SemesterRepository semesterRepository;
+    private final RentalRepository rentalRepository;
 
     @Override
     @Transactional
@@ -42,7 +51,7 @@ public class BlacklistServiceImpl implements BlacklistService {
             Long userId,
             RegisterBlacklistRequestDTO request
     ) {
-        User student = findStudent(userId);
+        User student = findStudentWithLock(userId);
         User administrator = findAdministrator(administratorId);
         Semester semester = semesterRepository.findById(request.semesterId())
                 .orElseThrow(() -> new BlacklistException(BlacklistErrorCode.SEMESTER_NOT_FOUND));
@@ -58,6 +67,7 @@ public class BlacklistServiceImpl implements BlacklistService {
                 .reasonDetail(request.reasonDetail().trim())
                 .registeredBy(administrator)
                 .build());
+        cancelUncollectedRentals(student.getId(), semester.getId(), LocalDateTime.now(KOREA));
         return BlacklistResponseDTO.from(blacklist);
     }
 
@@ -84,8 +94,84 @@ public class BlacklistServiceImpl implements BlacklistService {
         return BlacklistResponseDTO.from(blacklist);
     }
 
+    @Override
+    public void validateRentalEligibility(Long userId, Long semesterId) {
+        if (blacklistRepository.existsByUserIdAndSemesterIdAndReleasedAtIsNull(userId, semesterId)) {
+            throw new RentalException(RentalErrorCode.BLACKLISTED_USER);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void registerNoShow(Rental rental, LocalDateTime now) {
+        registerAutomatic(rental, rental.getSemester(), BlacklistReasonType.NO_SHOW, now);
+    }
+
+    @Override
+    @Transactional
+    public void registerOverdue(Rental rental, LocalDateTime now) {
+        Semester nextSemester = semesterRepository
+                .findFirstByStartDateGreaterThanOrderByStartDateAsc(rental.getSemester().getStartDate())
+                .orElseGet(() -> createNextSemester(rental.getSemester()));
+        registerAutomatic(rental, nextSemester, BlacklistReasonType.OVERDUE, now);
+    }
+
+    private void registerAutomatic(
+            Rental rental,
+            Semester targetSemester,
+            BlacklistReasonType reasonType,
+            LocalDateTime now
+    ) {
+        // 신청과 동시에 자동 제재가 생겨도 신청 쪽이 커밋 후 최신 제재 상태를 보도록
+        // 수동 등록과 같은 사용자 행 잠금을 사용한다.
+        User student = findStudentWithLock(rental.getUser().getId());
+        if (blacklistRepository.existsByRentalIdAndReasonType(rental.getId(), reasonType)) {
+            return;
+        }
+        blacklistRepository.save(Blacklist.builder()
+                .user(student)
+                .semester(targetSemester)
+                .rental(rental)
+                .reasonType(reasonType)
+                .build());
+        cancelUncollectedRentals(rental.getUser().getId(), targetSemester.getId(), now);
+    }
+
+    private void cancelUncollectedRentals(Long userId, Long semesterId, LocalDateTime now) {
+        Set<RentalStatus> cancellable = Set.of(
+                RentalStatus.PENDING_APPROVAL,
+                RentalStatus.READY_FOR_PICKUP
+        );
+        for (Rental pending : rentalRepository.findAllByUserIdAndSemesterIdAndStatusIn(
+                userId,
+                semesterId,
+                cancellable
+        )) {
+            pending.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+            pending.cancel(CancelReasonType.BLACKLISTED, now);
+        }
+    }
+
+    private Semester createNextSemester(Semester current) {
+        java.time.LocalDate startDate = current.defaultNextStartDate();
+        int term = startDate.getMonthValue() <= 6 ? 1 : 2;
+        return semesterRepository.save(Semester.builder()
+                .name(startDate.getYear() + "-" + term)
+                .startDate(startDate)
+                .build());
+    }
+
     private User findStudent(Long userId) {
         User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        if (user.getRole() != UserRole.STUDENT) {
+            throw new UserException(UserErrorCode.USER_NOT_FOUND);
+        }
+        return user;
+    }
+
+    private User findStudentWithLock(Long userId) {
+        User user = userRepository.findWithLockById(userId)
                 .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
         if (user.getRole() != UserRole.STUDENT) {
             throw new UserException(UserErrorCode.USER_NOT_FOUND);

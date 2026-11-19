@@ -1,5 +1,6 @@
 package com.mulmi.backend.domain.rental.service;
 
+import com.mulmi.backend.domain.blacklist.service.BlacklistService;
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
 import com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus;
 import com.mulmi.backend.domain.rental.dto.response.AdminRentalDetailResponseDTO;
@@ -63,6 +64,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
     private final UserRepository userRepository;
     private final S3StorageService s3StorageService;
     private final RentalStockCounter rentalStockCounter;
+    private final BlacklistService blacklistService;
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
     private static final long MAX_RENTAL_IMAGE_SIZE = 10 * 1024 * 1024;
@@ -92,7 +94,8 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 4. 신청자 계정 상태 : 신청 뒤에 정지·탈퇴됐을 수 있다 (명세 52 처리 규칙 2)
         RentalServiceImpl.validateAccountStatus(rental.getUser());
 
-        // 5. 블랙리스트 : MVP에서 제외 (11-07 결정)
+        // 5. 신청 뒤 제재가 등록됐을 수 있으므로 승인 직전에 다시 확인한다.
+        blacklistService.validateRentalEligibility(rental.getUser().getId(), rental.getSemester().getId());
 
         // 6. 승인 : 조교는 FK 값만 필요하므로 조회 없이 참조만 만든다
         User assistant = userRepository.getReferenceById(assistantId);
@@ -257,6 +260,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 커밋되면 Redis 재고도 +1 (롤백되면 안 늘어남)
         rentalStockCounter.addAfterCommit(rental.getEquipmentModel().getId(), 1);
         rental.markNoShow();
+        blacklistService.registerNoShow(rental, now);
         return true;
     }
 
@@ -330,6 +334,9 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 2-1. 신청자 계정 상태 : 승인 뒤 수령 전에 정지·탈퇴됐을 수 있다 (승인 52와 같은 검사)
         RentalServiceImpl.validateAccountStatus(rental.getUser());
 
+        // 승인 후 수령 전에 제재가 등록된 경우도 수령할 수 없다.
+        blacklistService.validateRentalEligibility(rental.getUser().getId(), rental.getSemester().getId());
+
         // 3. 수령 사진 : 사진 필수 카테고리(노트북·태블릿)는 55번으로 올린 사진이 있어야 한다
         Category category = rental.getEquipmentModel().getCategory();
         if (category.isPickupPhotoRequired()
@@ -388,7 +395,6 @@ public class AdminRentalServiceImpl implements AdminRentalService {
 
         // 3. 연체였는지 : 저장하지 않고 반납 시점에 계산한다
         boolean wasOverdue = rental.getExpectedReturnAt() != null && now.isAfter(rental.getExpectedReturnAt());
-        // 연체 반납 시 블랙리스트 등록 : MVP에서 제외 (11-07 결정)
 
         // 4. 기기는 항상 대여 가능으로 되돌린다
         //    반납 때 고장을 발견해도 반납을 먼저 끝낸 뒤 기기 수정(41)으로 고장 처리한다 (11-07 결정)
@@ -396,6 +402,9 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 커밋되면 Redis 재고도 +1 (롤백되면 안 늘어남)
         rentalStockCounter.addAfterCommit(rental.getEquipmentModel().getId(), 1);
         rental.returnItem(userRepository.getReferenceById(staffId), now);
+        if (wasOverdue) {
+            blacklistService.registerOverdue(rental, now);
+        }
 
         return new RentalReturnResponseDTO(
                 rental.getId(),
