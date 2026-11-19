@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 public record EquipmentItemUpdateRequestDTO(
-        // 라벨 쓰는 카테고리 기기만 입력 가능, null이면 기존 번호 유지
+        // 모든 카테고리 입력 가능 (기타는 접두사 없이 007), null이면 기존 번호 유지
         @Min(value = 1, message = "라벨 번호는 1 이상이어야 합니다.")
         Integer labelNumber,
 

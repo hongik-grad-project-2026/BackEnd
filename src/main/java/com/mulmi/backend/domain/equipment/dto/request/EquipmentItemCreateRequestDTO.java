@@ -12,7 +12,7 @@ public record EquipmentItemCreateRequestDTO(
         @Min(value = 1, message = "수량은 1 이상이어야 합니다.")
         Integer quantity,
 
-        // 라벨 쓰는 카테고리면 필수, 기타 카테고리면 null (서비스에서 검사)
+        // 모든 카테고리 필수 (기타도 접두사 없는 번호를 쓴다, 11-19). 없으면 서비스에서 400
         @Min(value = 1, message = "라벨 시작 번호는 1 이상이어야 합니다.")
         Integer labelStart,
 
