@@ -17,6 +17,13 @@ public enum EquipmentItemErrorCode implements BaseErrorCode {
             "라벨 시작 번호가 필요합니다."
     ),
 
+    // 시작 번호 + 수량이 저장 가능한 번호(2147483647)를 넘음 (자동 발급 포함)
+    LABEL_NUMBER_OUT_OF_RANGE(
+            HttpStatus.BAD_REQUEST,
+            "EQUIPMENTITEM400_5",
+            "라벨 번호가 허용 범위를 넘습니다."
+    ),
+
     INVALID_ITEM_STATUS(
             HttpStatus.BAD_REQUEST,
             "EQUIPMENTITEM400_3",
@@ -52,13 +59,8 @@ public enum EquipmentItemErrorCode implements BaseErrorCode {
             HttpStatus.CONFLICT,
             "EQUIPMENTITEM409_5",
             "대여 예정이거나 대여 중인 기기는 수정할 수 없습니다. 반려 또는 반납 처리 후 수정해 주세요."
-    ),
-
-    MODEL_CHANGED(
-            HttpStatus.CONFLICT,
-            "EQUIPMENTITEM409_4",
-            "모델 정보가 변경되었습니다. 새로고침 후 다시 시도해 주세요."
     );
+    // 409_4(모델 정보 변경됨)는 기기 등록이 모델 행을 잠그게 되며 삭제 (11-19) — 잠금 동안 모델이 바뀔 수 없다
 
     private final HttpStatus status;
     private final String code;

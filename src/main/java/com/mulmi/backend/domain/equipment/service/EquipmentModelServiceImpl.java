@@ -290,8 +290,9 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         String modelName = dto.modelName().trim();
         validateDateRange(dto.receivedDate(), dto.disposalDate());
 
-        // 1. 폐기되지 않은 모델 조회
-        EquipmentModel model = findActiveModel(modelId);
+        // 1. 폐기되지 않은 모델을 잠그며 조회 : 이 모델의 기기 등록·폐기와 한 줄로 선다
+        EquipmentModel model = equipmentModelRepository.findWithLockByIdAndDeletedAtIsNull(modelId)
+                .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
 
         // 2. 카테고리 조회 + 접두사 규칙 (등록과 같음)
         Category category = categoryRepository.findByIdAndDeletedAtIsNull(dto.categoryId())
@@ -309,16 +310,13 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         }
 
         // 3. 카테고리·접두사가 바뀌면 : 실물 라벨이 붙은 기기가 있으면 막는다
-        //    기존 접두사를 잠가서 같은 접두사로 진행 중인 일괄 등록이 끝난 뒤에 검사한다
+        //    1번의 모델 잠금으로 이 모델의 일괄 등록이 끝난 뒤에 검사한다 (등록도 같은 모델 행을 잠근다)
         LabelPrefix currentPrefix = model.getLabelPrefix();
         boolean categoryChanged = !category.getId().equals(model.getCategory().getId());
         boolean prefixChanged = !Objects.equals(
                 currentPrefix == null ? null : currentPrefix.getId(),
                 labelPrefix == null ? null : labelPrefix.getId());
         if (categoryChanged || prefixChanged) {
-            if (currentPrefix != null) {
-                labelPrefixRepository.findWithLockById(currentPrefix.getId());
-            }
             if (equipmentItemRepository.existsByEquipmentModelIdAndDeletedAtIsNull(model.getId())) {
                 throw new EquipmentModelException(EquipmentModelErrorCode.LABEL_SETTING_LOCKED);
             }
@@ -344,16 +342,13 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     @Override
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void retireEquipmentModel(Long modelId) {
-        EquipmentModel model = equipmentModelRepository.findById(modelId)
+        // 모델 행을 잠그며 조회 : 이 모델의 일괄 등록이 끝난 뒤에 기기를 확인한다 (접두사 유무와 상관없이)
+        //  이후 일괄 등록은 모델 잠금을 얻은 뒤 폐기된 것을 보고 404로 멈춘다
+        //  (예전엔 접두사 행을 잠갔는데, 기기 수정은 기기 → 접두사 순서로 잠가 서로 반대 순서라 교착이 날 수 있었다)
+        EquipmentModel model = equipmentModelRepository.findWithLockById(modelId)
                 .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
         if (model.getDeletedAt() != null) {
             throw new EquipmentModelException(EquipmentModelErrorCode.MODEL_ALREADY_RETIRED);
-        }
-
-        // 같은 접두사로 진행 중인 일괄 등록이 끝난 뒤에 기기를 확인한다 (잠금만 걸고 결과는 쓰지 않음)
-        // 이후 일괄 등록은 잠금을 얻은 뒤 모델이 폐기된 것을 보고 멈춘다
-        if (model.getLabelPrefix() != null) {
-            labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId());
         }
 
         // 살아 있는 기기를 전부 잠그며 가져와서, 그 목록으로 예약·대여 중인지 본다
