@@ -17,6 +17,9 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     // 카테고리 목록 조회. 삭제된 것은 제외한다.
     List<Category> findAllByDeletedAtIsNull();
 
+    // 대시보드 62 : 이름으로 고른 카테고리 (모델이 없어도 응답에 빈 목록으로 나가야 해서 따로 조회)
+    List<Category> findAllByNameInAndDeletedAtIsNullOrderByIdAsc(List<String> names);
+
     // 수정·삭제 대상 조회. 삭제된 카테고리는 대상이 될 수 없다.
     Optional<Category> findByIdAndDeletedAtIsNull(Long id);
 
