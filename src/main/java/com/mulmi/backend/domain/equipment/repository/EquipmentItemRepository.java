@@ -36,6 +36,37 @@ public interface EquipmentItemRepository extends JpaRepository<EquipmentItem, Lo
             """)
     List<ModelStockCount> countStockByModelIds(@Param("modelIds") List<Long> modelIds);
 
+    // 대시보드 62 : 모델별 대여 중 수·보유 수 (별칭과 getter 이름이 같아야 값이 들어감)
+    interface ModelUsageRow {
+        Long getCategoryId();
+        String getCategoryName();
+        Long getModelId();
+        String getModelName();
+        Long getRentedCount();
+        Long getTotalCount();
+    }
+
+    // 노트북·태블릿처럼 이름으로 고른 카테고리의 모델별 집계 (고장·폐기 기기, 삭제된 모델·카테고리 제외)
+    @Query("""
+            SELECT c.id AS categoryId,
+                   c.name AS categoryName,
+                   m.id AS modelId,
+                   m.name AS modelName,
+                   SUM(CASE WHEN i.status = com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus.RENTED
+                            THEN 1 ELSE 0 END) AS rentedCount,
+                   COUNT(i) AS totalCount
+            FROM EquipmentItem i
+            JOIN i.equipmentModel m
+            JOIN m.category c
+            WHERE c.name IN :categoryNames
+              AND c.deletedAt IS NULL
+              AND m.deletedAt IS NULL
+              AND i.deletedAt IS NULL
+              AND i.status <> com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus.BROKEN
+            GROUP BY c.id, c.name, m.id, m.name
+            """)
+    List<ModelUsageRow> countUsageByCategoryNames(@Param("categoryNames") List<String> categoryNames);
+
     // 모델별 기기 목록 : 상태·라벨 검색어는 null이면 조건 무시
     @Query("""
             SELECT i FROM EquipmentItem i

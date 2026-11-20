@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +19,40 @@ public interface EquipmentModelRepository extends JpaRepository<EquipmentModel, 
         Long getCategoryId();
         Long getModelCount();
     }
+
+    // 대시보드 63 : 장기 미대여 후보 모델 (별칭과 getter 이름이 같아야 값이 들어감)
+    interface ModelIdleRow {
+        Long getModelId();
+        String getModelName();
+        String getCategoryName();
+        LocalDateTime getCreatedAt();
+        LocalDateTime getLastReturnedAt();   // 반납 기록이 없으면 null
+    }
+
+    // "지금 빌릴 수 있는데 안 빌려간" 모델 (11-20 결정)
+    //  폐기되지 않고 대여 가능(AVAILABLE) 상태인 모델 중 AVAILABLE 기기가 1대 이상이고, 지금 RENTED 기기가 없는 모델
+    //  → 예약이 몰린 모델(전부 RESERVED)·대여 중지 모델은 빠진다
+    //  + 그 모델 대여의 마지막 실제 반납 시각
+    @Query("""
+            SELECT m.id AS modelId,
+                   m.name AS modelName,
+                   m.category.name AS categoryName,
+                   m.createdAt AS createdAt,
+                   (SELECT MAX(r.actualReturnAt) FROM Rental r
+                     WHERE r.equipmentModel = m) AS lastReturnedAt
+            FROM EquipmentModel m
+            WHERE m.deletedAt IS NULL
+              AND m.rentalStatus = com.mulmi.backend.domain.equipment.enums.EquipmentModelStatus.AVAILABLE
+              AND EXISTS (SELECT 1 FROM EquipmentItem i
+                           WHERE i.equipmentModel = m
+                             AND i.deletedAt IS NULL
+                             AND i.status = com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus.AVAILABLE)
+              AND NOT EXISTS (SELECT 1 FROM EquipmentItem i
+                               WHERE i.equipmentModel = m
+                                 AND i.deletedAt IS NULL
+                                 AND i.status = com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus.RENTED)
+            """)
+    List<ModelIdleRow> findIdleCandidates();
 
     long countByCategoryIdAndDeletedAtIsNull(Long categoryId);
 
