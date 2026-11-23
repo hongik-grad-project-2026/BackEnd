@@ -30,6 +30,7 @@ import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository.CategoryModelCount;
 import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
 import com.mulmi.backend.domain.favorite.repository.FavoriteRepository;
+import com.mulmi.backend.domain.rental.stock.RentalStockCounter;
 import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -72,6 +73,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     private final LabelPrefixRepository labelPrefixRepository;
     private final S3StorageService s3StorageService;
     private final FavoriteRepository favoriteRepository;
+    private final RentalStockCounter rentalStockCounter;
 
     // 모델 등록
     @Override
@@ -119,6 +121,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         }
 
         // 6. 응답 DTO return
+        //    Redis 재고 키는 만들지 않는다 : 키가 없으면 신청은 DB로 처리되고, 다음 재동기화 때 DB 개수로 생긴다
         return EquipmentModelConverter.toEquipmentModelCreateResponseDTO(model);
     }
 
@@ -362,6 +365,9 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
         // 남은 기기(대여 가능·고장)도 함께 폐기 : 변경 감지로 기기마다 deleted_at UPDATE
         items.forEach(EquipmentItem::dispose);
         model.retire();
+
+        // Redis 재고 키 삭제 : 이후 신청은 키가 없어 DB 확인으로 넘어가고, 거기서 "모델 없음"으로 거절된다
+        rentalStockCounter.deleteAfterCommit(modelId);
     }
 
     // 삭제되지 않은 모델 조회

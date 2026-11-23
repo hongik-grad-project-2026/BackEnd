@@ -8,6 +8,7 @@ import com.mulmi.backend.domain.rental.dto.response.RentalDetailResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalPageResponseDTO;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import com.mulmi.backend.domain.rental.exception.code.RentalSuccessCode;
+import com.mulmi.backend.domain.rental.service.RentalApplyFacade;
 import com.mulmi.backend.domain.rental.service.RentalService;
 import com.mulmi.backend.global.apiPayload.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +41,7 @@ import java.util.List;
 public class RentalController {
 
     private final RentalService rentalService;
+    private final RentalApplyFacade rentalApplyFacade;
 
     // 대여 신청 (명세 46번) : 신청자는 본문이 아니라 토큰에서 꺼낸다
     @Operation(summary = "대여 신청")
@@ -52,7 +54,7 @@ public class RentalController {
     ) {
         return ApiResponse.onSuccess(
                 RentalSuccessCode.RENTAL_CREATED,
-                rentalService.createRental(userId, dto)
+                rentalApplyFacade.apply(userId, dto)
         );
     }
 

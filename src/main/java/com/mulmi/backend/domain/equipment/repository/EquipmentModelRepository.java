@@ -101,4 +101,11 @@ public interface EquipmentModelRepository extends JpaRepository<EquipmentModel, 
             """)
     List<CategoryModelCount> countModelsByCategory();
 
+    // 대여 재고 동기화(Redis) : 폐기되지 않은 모델의 id만 (엔티티 전체를 읽지 않음)
+    @Query("""
+            SELECT m.id FROM EquipmentModel m
+            WHERE m.deletedAt IS NULL
+            """)
+    List<Long> findAllActiveIds();
+
 }

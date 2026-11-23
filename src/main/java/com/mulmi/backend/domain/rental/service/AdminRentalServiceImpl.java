@@ -33,6 +33,7 @@ import com.mulmi.backend.domain.rental.entity.RentalImage;
 import com.mulmi.backend.domain.rental.enums.RentalImageSide;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
 import com.mulmi.backend.domain.rental.repository.RentalImageRepository;
+import com.mulmi.backend.domain.rental.stock.RentalStockCounter;
 import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +62,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
     private final SemesterRepository semesterRepository;
     private final UserRepository userRepository;
     private final S3StorageService s3StorageService;
+    private final RentalStockCounter rentalStockCounter;
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
     private static final long MAX_RENTAL_IMAGE_SIZE = 10 * 1024 * 1024;
@@ -252,6 +254,8 @@ public class AdminRentalServiceImpl implements AdminRentalService {
 
         // 3. 신청 때 예약한 기기를 재고로 되돌리고 노쇼 기록 (반려·취소와 같음)
         rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+        // 커밋되면 Redis 재고도 +1 (롤백되면 안 늘어남)
+        rentalStockCounter.addAfterCommit(rental.getEquipmentModel().getId(), 1);
         rental.markNoShow();
         return true;
     }
@@ -272,6 +276,8 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         }
 
         rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+        // 커밋되면 Redis 재고도 +1 (롤백되면 안 늘어남)
+        rentalStockCounter.addAfterCommit(rental.getEquipmentModel().getId(), 1);
         rental.cancel(CancelReasonType.APPROVAL_DELAYED, now);
         return true;
     }
@@ -387,6 +393,8 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 4. 기기는 항상 대여 가능으로 되돌린다
         //    반납 때 고장을 발견해도 반납을 먼저 끝낸 뒤 기기 수정(41)으로 고장 처리한다 (11-07 결정)
         rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+        // 커밋되면 Redis 재고도 +1 (롤백되면 안 늘어남)
+        rentalStockCounter.addAfterCommit(rental.getEquipmentModel().getId(), 1);
         rental.returnItem(userRepository.getReferenceById(staffId), now);
 
         return new RentalReturnResponseDTO(
@@ -510,6 +518,8 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 3. 신청 때 예약한 기기를 재고로 되돌린다 (명세 53, 10/15 결정)
         //    대여 흐름 중인 기기는 기기 수정(41)에서 상태를 바꿀 수 없으므로 여기서는 항상 RESERVED다 (11-07 결정)
         rental.getEquipmentItem().changeStatus(EquipmentItemStatus.AVAILABLE);
+        // 커밋되면 Redis 재고도 +1 (롤백되면 안 늘어남)
+        rentalStockCounter.addAfterCommit(rental.getEquipmentModel().getId(), 1);
 
         // 4. 반려 기록
         User assistant = userRepository.getReferenceById(assistantId);

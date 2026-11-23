@@ -3,6 +3,13 @@ spring:
   config:
     activate:
       on-profile: local
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # 명령 응답 대기 (기본 60초면 Redis가 멈출 때 신청이 1분씩 묶인다 → 실패하면 DB로 판단)
+      timeout: 500ms
+      connect-timeout: 1s
 
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/mulmi?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8}
