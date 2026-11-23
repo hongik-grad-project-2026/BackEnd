@@ -14,6 +14,7 @@ import com.mulmi.backend.domain.equipment.exception.LabelPrefixException;
 import com.mulmi.backend.domain.equipment.exception.code.EquipmentItemErrorCode;
 import com.mulmi.backend.domain.equipment.exception.code.EquipmentModelErrorCode;
 import com.mulmi.backend.domain.equipment.exception.code.LabelPrefixErrorCode;
+import com.mulmi.backend.domain.equipment.repository.CategoryRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentItemRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
@@ -35,6 +36,7 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
     private final EquipmentItemRepository equipmentItemRepository;
     private final EquipmentModelRepository equipmentModelRepository;
     private final LabelPrefixRepository labelPrefixRepository;
+    private final CategoryRepository categoryRepository;
     private final RentalStockCounter rentalStockCounter;
 
     // READ_COMMITTED : MySQL 기본(REPEATABLE READ)이면 잠금을 기다린 뒤의 중복 검사가
@@ -45,60 +47,63 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
         // 0. 대여 예정·대여 중은 대여 흐름에서만 만들어지므로 등록 시 지정 불가
         validateManualStatus(dto.status());
 
-        // 1. 폐기되지 않은 모델 조회
-        EquipmentModel model = equipmentModelRepository.findByIdAndDeletedAtIsNull(dto.modelId())
+        // 1. 폐기되지 않은 모델을 잠그며 조회 : 모델 수정(카테고리·접두사 변경)·모델 폐기와 한 줄로 선다
+        //    잠금이 첫 조회라 기다린 뒤 최신 커밋 값을 읽는다 → 폐기됐으면 404, 커밋까지 모델이 바뀌지 않는다
+        EquipmentModel model = equipmentModelRepository.findWithLockByIdAndDeletedAtIsNull(dto.modelId())
                 .orElseThrow(()-> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
 
-        // 2. 카테고리 라벨 사용 여부로 분기 + labelStart 필수/금지 검사
-        boolean labelRequired = model.getCategory().isLabelRequired();
-        if (labelRequired && dto.labelStart() == null) {
+        // 2. 시작 번호 : 접두사 카테고리는 필수, 기타는 없으면 서버가 발급 (11-19 프론트 요청)
+        //    isLabelRequired()는 이제 "접두사를 쓰는가"를 뜻한다 (노트북·태블릿·보조배터리 = 접두사, 기타 = 번호만)
+        boolean hasPrefix = model.getCategory().isLabelRequired();
+        if (hasPrefix && dto.labelStart() == null) {
             throw new EquipmentItemException(EquipmentItemErrorCode.LABEL_START_REQUIRED);
         }
-        if (!labelRequired && dto.labelStart() != null) {
-            throw new EquipmentItemException(EquipmentItemErrorCode.LABEL_START_NOT_ALLOWED);
-        }
 
-        // 3. (라벨 사용) 접두사 행 잠금
+        // 3. 번호 공간 잠금 후 시작 번호 결정
+        //    접두사 있음 : 같은 접두사를 쓰는 모델끼리(예: 맥북 여러 모델이 M) 한 줄로 → lastNumber 갱신
+        //    접두사 없음 : 접두사 없는 번호(007)는 카테고리가 달라도 한 공간이라 그 카테고리 전부를 잠근다
+        //                 시작 번호를 보내면 그 번호부터, 없으면 접두사 없는 번호 중 최대 + 1부터 (기다린 뒤 읽으므로 앞 요청 번호까지 보임)
         LabelPrefix prefix = null;
-        if (labelRequired) {
+        long labelStart;
+        if (hasPrefix) {
             prefix = labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId())
                     .orElseThrow(() -> new LabelPrefixException(LabelPrefixErrorCode.LABEL_PREFIX_NOT_FOUND));
-
-            // 3-1. 잠금을 기다리는 동안 모델이 폐기됐거나(모델 폐기) 접두사가 바뀌었을 수 있다(모델 수정)
-            //      1번에서 읽은 model 객체는 옛 값이므로 최신 값을 따로 조회해 비교한다
-            Long latestPrefixId = equipmentModelRepository.findActivePrefixId(model.getId())
-                    .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
-            if (!latestPrefixId.equals(prefix.getId())) {
-                throw new EquipmentItemException(EquipmentItemErrorCode.MODEL_CHANGED);
-            }
+            labelStart = dto.labelStart();
+        } else {
+            categoryRepository.findAllWithLockByLabelRequiredFalseOrderByIdAsc();
+            labelStart = dto.labelStart() != null
+                    ? dto.labelStart()
+                    : equipmentItemRepository.findMaxUnprefixedLabelNumber().orElse(0) + 1L;
         }
 
-        // 4. 라벨 코드 목록 생성
+        // 3-1. 마지막 번호가 저장 가능한 범위(int)를 넘으면 거절 : long으로 계산해야 넘침을 알아챈다
+        //      (int로 더하면 2147483647 + 1이 -2147483648로 바뀐다)
+        long labelEnd = labelStart + dto.quantity() - 1;
+        if (labelEnd > Integer.MAX_VALUE) {
+            throw new EquipmentItemException(EquipmentItemErrorCode.LABEL_NUMBER_OUT_OF_RANGE);
+        }
+
+        // 4. 라벨 코드 목록 생성 (접두사 있으면 M-041, 없으면 041)
         List<String> labelCodes = new ArrayList<>();
-        if (labelRequired) {
-            for (int i = 0; i < dto.quantity(); i++) {
-                int number = dto.labelStart() + i;
-                labelCodes.add(toLabelCode(prefix, number));
-            }
+        for (int i = 0; i < dto.quantity(); i++) {
+            labelCodes.add(toLabelCode(prefix, (int) labelStart + i));
         }
 
-        // 5. 라벨 중복 검사 (폐기 포함)
-        if (labelRequired && equipmentItemRepository.existsByLabelCodeIn(labelCodes)) {
+        // 5. 라벨 중복 검사 (폐기 포함 → 폐기된 번호는 재사용 불가)
+        if (equipmentItemRepository.existsByLabelCodeIn(labelCodes)) {
             throw new EquipmentItemException(EquipmentItemErrorCode.DUPLICATE_LABEL);
         }
 
         // 6. 기기 생성 후 saveAll
         List<EquipmentItem> items = new ArrayList<>();
         for (int i = 0; i < dto.quantity(); i++) {
-            EquipmentItem.EquipmentItemBuilder builder = EquipmentItem.builder()
+            items.add(EquipmentItem.builder()
                     .equipmentModel(model)
                     .status(dto.status())
-                    .memo(dto.memo());
-            if (labelRequired) {
-                builder.labelNumber(dto.labelStart() + i)
-                        .labelCode(labelCodes.get(i));
-            }
-            items.add(builder.build());
+                    .memo(dto.memo())
+                    .labelNumber((int) labelStart + i)
+                    .labelCode(labelCodes.get(i))
+                    .build());
         }
         // 5번 검사를 빠져나간 경우는 DB UNIQUE에서 막히므로 여기서 409로 바꾼다
         try {
@@ -107,17 +112,16 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
             throw new EquipmentItemException(EquipmentItemErrorCode.DUPLICATE_LABEL);
         }
 
-        // 7. (라벨 사용) lastNumber 갱신
-        if (labelRequired) {
-            prefix.raiseLastNumberTo(dto.labelStart() + dto.quantity() - 1);
+        // 7. (접두사 사용) lastNumber 갱신
+        if (hasPrefix) {
+            prefix.raiseLastNumberTo((int) labelEnd);
         }
 
         // 8. 대여 가능으로 등록했으면 Redis 재고 +수량 (고장으로 등록했으면 0)
         rentalStockCounter.addAfterCommit(model.getId(), (long) dto.quantity() * availableCount(dto.status()));
 
-        String firstLabelCode = labelRequired ? labelCodes.get(0) : null;
-        String lastLabelCode = labelRequired ? labelCodes.get(labelCodes.size() - 1) : null;
-        return new EquipmentItemCreateResponseDTO(model.getId(), dto.quantity(), firstLabelCode, lastLabelCode);
+        return new EquipmentItemCreateResponseDTO(model.getId(), dto.quantity(),
+                labelCodes.get(0), labelCodes.get(labelCodes.size() - 1));
     }
 
     // 기기 정보 수정 : 라벨을 바꿀 때만 접두사를 잠근다 (격리 수준 이유는 일괄 등록과 같음)
@@ -137,20 +141,26 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
 
         // 2. 라벨 번호가 바뀔 때만 : 같은 번호면 자기 자신과 겹쳐 409가 나므로 건너뛴다
         Integer newNumber = dto.labelNumber();
+        //    기타도 번호 수정 가능 (11-19 결정). 접두사 잠금·lastNumber 갱신은 접두사가 있을 때만
         if (newNumber != null && !newNumber.equals(item.getLabelNumber())) {
             EquipmentModel model = item.getEquipmentModel();
-            if (!model.getCategory().isLabelRequired()) {
-                throw new EquipmentItemException(EquipmentItemErrorCode.LABEL_NUMBER_NOT_ALLOWED);
+            LabelPrefix prefix = null;
+            if (model.getCategory().isLabelRequired()) {
+                prefix = labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId())
+                        .orElseThrow(() -> new LabelPrefixException(LabelPrefixErrorCode.LABEL_PREFIX_NOT_FOUND));
+            } else {
+                // 접두사 없음 : 자동 발급과 같은 잠금을 잡아, 발급이 이 수정 번호를 보고 다음 번호를 고르게 한다
+                categoryRepository.findAllWithLockByLabelRequiredFalseOrderByIdAsc();
             }
-            LabelPrefix prefix = labelPrefixRepository.findWithLockById(model.getLabelPrefix().getId())
-                    .orElseThrow(() -> new LabelPrefixException(LabelPrefixErrorCode.LABEL_PREFIX_NOT_FOUND));
 
             String newCode = toLabelCode(prefix, newNumber);
             if (equipmentItemRepository.existsByLabelCodeIn(List.of(newCode))) {
                 throw new EquipmentItemException(EquipmentItemErrorCode.DUPLICATE_LABEL);
             }
             item.changeLabel(newNumber, newCode);
-            prefix.raiseLastNumberTo(newNumber);
+            if (prefix != null) {
+                prefix.raiseLastNumberTo(newNumber);
+            }
         }
 
         // 3. 상태·메모 변경 (메모는 null이면 유지)
@@ -203,7 +213,11 @@ public class EquipmentItemServiceImpl implements EquipmentItemService {
     }
 
     // 라벨 코드 형식은 이 메서드 하나에서만 만든다 (검사용·저장용이 어긋나지 않게)
+    // 접두사 없음(기타) → "007" : "M-007"과 절대 겹치지 않으므로 label_code UNIQUE가 곧 기타 안 중복 금지가 된다
     private String toLabelCode(LabelPrefix prefix, int number) {
+        if (prefix == null) {
+            return String.format("%03d", number);
+        }
         return String.format("%s-%03d", prefix.getCode(), number);
     }
 

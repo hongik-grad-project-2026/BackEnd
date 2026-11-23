@@ -36,6 +36,37 @@ public interface EquipmentItemRepository extends JpaRepository<EquipmentItem, Lo
             """)
     List<ModelStockCount> countStockByModelIds(@Param("modelIds") List<Long> modelIds);
 
+    // 대시보드 62 : 모델별 대여 중 수·보유 수 (별칭과 getter 이름이 같아야 값이 들어감)
+    interface ModelUsageRow {
+        Long getCategoryId();
+        String getCategoryName();
+        Long getModelId();
+        String getModelName();
+        Long getRentedCount();
+        Long getTotalCount();
+    }
+
+    // 노트북·태블릿처럼 이름으로 고른 카테고리의 모델별 집계 (고장·폐기 기기, 삭제된 모델·카테고리 제외)
+    @Query("""
+            SELECT c.id AS categoryId,
+                   c.name AS categoryName,
+                   m.id AS modelId,
+                   m.name AS modelName,
+                   SUM(CASE WHEN i.status = com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus.RENTED
+                            THEN 1 ELSE 0 END) AS rentedCount,
+                   COUNT(i) AS totalCount
+            FROM EquipmentItem i
+            JOIN i.equipmentModel m
+            JOIN m.category c
+            WHERE c.name IN :categoryNames
+              AND c.deletedAt IS NULL
+              AND m.deletedAt IS NULL
+              AND i.deletedAt IS NULL
+              AND i.status <> com.mulmi.backend.domain.equipment.enums.EquipmentItemStatus.BROKEN
+            GROUP BY c.id, c.name, m.id, m.name
+            """)
+    List<ModelUsageRow> countUsageByCategoryNames(@Param("categoryNames") List<String> categoryNames);
+
     // 모델별 기기 목록 : 상태·라벨 검색어는 null이면 조건 무시
     @Query("""
             SELECT i FROM EquipmentItem i
@@ -82,6 +113,17 @@ public interface EquipmentItemRepository extends JpaRepository<EquipmentItem, Lo
     // 모델 폐기: 살아 있는 기기를 전부 잠그며 조회 → 이 목록으로 예약·대여 중인지 검사하고 함께 폐기
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<EquipmentItem> findAllWithLockByEquipmentModelIdAndDeletedAtIsNull(Long modelId);
+
+    // 접두사 없는 번호 중 가장 큰 번호 (자동 발급용). 폐기된 기기·폐기된 모델도 포함 — 폐기 번호를 다시 주지 않기 위해
+    //  카테고리가 아니라 코드 형식으로 거른다 : 중복 검사(label_code UNIQUE)가 코드 기준이므로 범위를 똑같이 맞춘다
+    //  접두사 있는 코드는 모두 '-'를 포함(M-007)하므로 '-' 없는 코드가 곧 접두사 없는 번호 공간이다
+    //  (접두사 없는 카테고리가 여럿이어도, 기기가 폐기된 채 모델이 다른 카테고리로 옮겨 가도 빠지지 않는다)
+    @Query("""
+            SELECT MAX(i.labelNumber)
+            FROM EquipmentItem i
+            WHERE i.labelCode NOT LIKE '%-%'
+            """)
+    Optional<Integer> findMaxUnprefixedLabelNumber();
 
     // 일괄 등록할 라벨 중 이미 쓰인 게 하나라도 있는지 (폐기된 기기 포함 — 라벨은 재사용하지 않음)
     boolean existsByLabelCodeIn(Collection<String> labelCodes);

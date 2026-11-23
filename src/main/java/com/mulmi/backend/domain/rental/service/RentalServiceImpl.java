@@ -92,7 +92,9 @@ public class RentalServiceImpl implements RentalService {
         // 2. 블랙리스트 : MVP에서 제외 (11-07 결정)
 
         // 3. 모델: 존재하고 대여 가능(AVAILABLE)이어야 한다
-        EquipmentModel model = equipmentModelRepository.findByIdAndDeletedAtIsNull(dto.modelId())
+        //    공유 잠금으로 읽는다 : 잠금 순서를 모델 → 학생 → 기기로 맞춰 모델 폐기(모델 → 기기)와 교착하지 않게 한다
+        //    (대여 INSERT의 외래 키 검사가 어차피 모델 행에 공유 잠금을 거는데, 기기를 잡은 뒤에 걸리면 순서가 반대가 된다)
+        EquipmentModel model = equipmentModelRepository.findWithShareLockByIdAndDeletedAtIsNull(dto.modelId())
                 .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
         if (model.getRentalStatus() != EquipmentModelStatus.AVAILABLE) {
             throw new RentalException(RentalErrorCode.MODEL_NOT_RENTABLE);
