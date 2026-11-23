@@ -120,10 +120,8 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
             throw new EquipmentModelException(EquipmentModelErrorCode.DUPLICATE_MODEL);
         }
 
-        // 6. Redis 재고 키를 0으로 만든다 (기기는 기기 등록 때 +n). id는 INSERT 뒤에야 생기므로 저장 뒤에 둔다
-        rentalStockCounter.createAfterCommit(model.getId());
-
-        // 7. 응답 DTO return
+        // 6. 응답 DTO return
+        //    Redis 재고 키는 만들지 않는다 : 키가 없으면 신청은 DB로 처리되고, 다음 재동기화 때 DB 개수로 생긴다
         return EquipmentModelConverter.toEquipmentModelCreateResponseDTO(model);
     }
 
