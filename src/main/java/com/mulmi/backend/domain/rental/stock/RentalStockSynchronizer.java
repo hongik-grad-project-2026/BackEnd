@@ -31,6 +31,9 @@ public class RentalStockSynchronizer implements ApplicationRunner {
     @Value("${rental.stock-resync-ms:60000}")
     private long resyncMs;
 
+    // 직전 재동기화가 성공했는지 (resync는 synchronized라 한 번에 한 스레드만 바꾼다)
+    private boolean lastResyncSucceeded = false;
+
     @Override
     public void run(ApplicationArguments args) {
         resync();
@@ -49,6 +52,7 @@ public class RentalStockSynchronizer implements ApplicationRunner {
         try {
             modelIds = equipmentModelRepository.findAllActiveIds();
         } catch (RuntimeException exception) {
+            lastResyncSucceeded = false;
             log.warn("대여 재고 재동기화 실패 (모델 조회)", exception);
             return;
         }
@@ -60,6 +64,7 @@ public class RentalStockSynchronizer implements ApplicationRunner {
         try {
             startedAt = rentalStockCounter.beginResync(modelIds);
         } catch (RuntimeException exception) {
+            lastResyncSucceeded = false;
             log.warn("대여 재고 재동기화 실패 (Redis 키 삭제), 다음 주기에 다시 시도", exception);
             return;
         }
@@ -81,10 +86,20 @@ public class RentalStockSynchronizer implements ApplicationRunner {
                 availableByModel.put(count.getModelId(), count.getAvailableCount());
             }
             // 키 만료 = 주기의 3배 : 재동기화가 두 번 연속 실패해도 살아 있는 키는 유지된다
-            rentalStockCounter.finishResync(availableByModel, startedAt, Duration.ofMillis(resyncMs * 3));
-            log.debug("대여 재고 재동기화 완료: 모델 {}개", availableByModel.size());
+            int written = rentalStockCounter.finishResync(availableByModel, startedAt, Duration.ofMillis(resyncMs * 3));
+            // 앱 시작 후 처음 키를 쓴 주기·실패 뒤 회복은 INFO로 남긴다 (배포 후 "Redis로 판단 중인지" 로그로 확인)
+            //  평소엔 1분마다라 DEBUG. 키를 하나도 못 쓴 주기(전부 진행 중 증감·누락 표시)는 성공으로 치지 않는다
+            if (written > 0 && !lastResyncSucceeded) {
+                log.info("대여 재고 재동기화 완료: 모델 {}개 중 {}개 기록 (나머지는 다음 주기)", availableByModel.size(), written);
+            } else {
+                log.debug("대여 재고 재동기화 완료: 모델 {}개 중 {}개 기록", availableByModel.size(), written);
+            }
+            if (written > 0) {
+                lastResyncSucceeded = true;
+            }
         } catch (RuntimeException exception) {
             // 키는 이미 지워졌으므로 신청은 DB로 처리된다. 다음 주기에 다시 채운다
+            lastResyncSucceeded = false;
             log.warn("대여 재고 재동기화 실패, 다음 주기에 다시 시도", exception);
         }
     }

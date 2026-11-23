@@ -7,6 +7,15 @@ spring:
   application:
     name: mulmi-backend
 
+  # 대여 재고 문지기 (compose.deploy.yml의 redis 서비스, 같은 EC2·내부 네트워크)
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      # 명령 응답 대기 (기본 60초면 Redis가 멈출 때 신청이 1분씩 묶인다 → 실패하면 DB로 판단)
+      timeout: 500ms
+      connect-timeout: 1s
+
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}

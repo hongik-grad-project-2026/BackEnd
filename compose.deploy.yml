@@ -5,12 +5,15 @@
 #  EC2의 비밀 환경변수 전달
 #  EC2의 80번 포트를 Spring Boot 8080번 포트에 연결
 #  서버가 꺼지면 컨테이너 재시작
+#  대여 재고 문지기용 Redis를 같은 EC2에 함께 실행 (외부 포트 없음, backend만 내부 네트워크로 접근)
 
 services:
   backend:
     image: ${IMAGE_URI:?IMAGE_URI must be set}
     container_name: mulmi-backend
     restart: unless-stopped
+    # redis에 depends_on을 걸지 않는다 : Redis가 못 떠도 백엔드 배포는 되어야 한다 (앱은 Redis 없이 DB로 판단)
+    #  시작 순서는 deploy-on-ec2.sh가 redis를 먼저 띄워 맞춘다
     env_file:
       - path: /opt/mulmi/backend.env
         format: raw
@@ -22,6 +25,27 @@ services:
       TZ: Asia/Seoul
     ports:
       - "80:8080"
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    # 7.x : 재고 스크립트가 쓰는 KEEPTTL은 6.0 이상에서 동작
+    image: redis:7.4-alpine
+    container_name: mulmi-redis
+    restart: unless-stopped
+    # 메모리 상한 64MB (EC2 스왑 없음) / 가득 차면 키를 지우지 않고 쓰기를 거절 → 앱이 DB 판단으로 전환
+    #  (키를 몰래 지우는 정책이면 "누락 표시"가 사라져 재동기화가 틀린 숫자를 쓸 수 있다)
+    # 디스크 저장 안 함 : 재시작으로 비어도 앱의 재동기화가 DB 개수로 다시 채운다
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "noeviction", "--save", "", "--appendonly", "no"]
+    # maxmemory는 데이터 상한일 뿐 프로세스 메모리(버퍼·단편화 등)는 넘을 수 있어 컨테이너 상한을 따로 둔다
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     logging:
       options:
         max-size: "10m"

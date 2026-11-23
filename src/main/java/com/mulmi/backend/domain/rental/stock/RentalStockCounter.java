@@ -163,19 +163,24 @@ public class RentalStockCounter {
     }
 
     // ttl : 재동기화가 활성 모델 키를 매번 새로 쓰므로, 폐기된 모델의 키나 재동기화가 멈춘 뒤의 키만 만료된다
-    public void finishResync(Map<Long, Long> availableByModel, long startedAt, Duration ttl) {
-        availableByModel.forEach((modelId, count) -> {
+    // 반환 : 키를 쓴 모델 수 (나머지는 진행 중 증감·누락 표시로 건너뜀 → 키 없이 DB로)
+    public int finishResync(Map<Long, Long> availableByModel, long startedAt, Duration ttl) {
+        int writtenCount = 0;
+        for (Map.Entry<Long, Long> entry : availableByModel.entrySet()) {
+            Long modelId = entry.getKey();
             if (inFlight.containsKey(modelId)) {
-                return; // 키 없이 DB로, 다음 재동기화에서 다시 맞춘다
+                continue; // 키 없이 DB로, 다음 재동기화에서 다시 맞춘다
             }
             Long written = redisTemplate.execute(RESYNC_SET_SCRIPT,
                     List.of(key(modelId), missedKey(modelId)),
-                    String.valueOf(count), String.valueOf(ttl.toMillis()));
+                    String.valueOf(entry.getValue()), String.valueOf(ttl.toMillis()));
             if (written != null && written == 1) {
                 syncedModels.add(modelId);
                 untrusted.computeIfPresent(modelId, (id, since) -> since < startedAt ? null : since);
+                writtenCount++;
             }
-        });
+        }
+        return writtenCount;
     }
 
     // 증감 실행. 실패하면 숫자가 실제와 어긋났으므로 이 모델을 믿지 않는다
