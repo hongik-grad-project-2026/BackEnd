@@ -30,7 +30,7 @@ public class DashboardServiceImpl implements DashboardService {
     private static final List<String> USAGE_CATEGORY_NAMES = List.of("노트북", "태블릿");
     private static final int TOP_N = 3;
 
-    // 63 : 마지막 반납(또는 등록) 후 이 일수 이상 지나면 장기 미대여
+    // 63 : 마지막 반납(또는 입고) 후 이 일수 이상 지나면 장기 미대여
     private static final long IDLE_DAYS_THRESHOLD = 14;
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
 
@@ -76,8 +76,8 @@ public class DashboardServiceImpl implements DashboardService {
         LocalDate today = LocalDate.now(KOREA);
 
         // 쿼리가 "대여 가능 모델 + AVAILABLE 기기 있음 + 지금 RENTED 없음" 모델만 준다
-        //  → 기준일(마지막 반납일, 없으면 등록일)부터 오늘까지 일수 → 14일 이상 → 일수 내림차순·모델 id 오름차순 → 3개
-        //  기준일을 알 수 없는 모델(반납 기록·등록일 둘 다 없음)은 한 건 때문에 전체가 500이 되지 않게 뺀다
+        //  → 기준일(마지막 반납일, 없으면 입고일)부터 오늘까지 일수 → 14일 이상 → 일수 내림차순·모델 id 오름차순 → 3개
+        //  기준일을 알 수 없는 모델(반납 기록·입고일 둘 다 없음)은 한 건 때문에 전체가 500이 되지 않게 뺀다
         return equipmentModelRepository.findIdleCandidates().stream()
                 .filter(row -> baseDateOf(row) != null)
                 .map(row -> new IdleModel(row, ChronoUnit.DAYS.between(baseDateOf(row), today)))
@@ -90,11 +90,10 @@ public class DashboardServiceImpl implements DashboardService {
                 .toList();
     }
 
-    // 기준일 : 마지막 실제 반납일, 반납 기록이 한 번도 없으면 모델 등록일 (날짜만 본다)
-    //  등록일은 API로 만든 모델이면 항상 있지만 컬럼은 NULL을 허용한다 → 둘 다 없으면 null (호출한 쪽에서 제외)
+    // 기준일 : 마지막 실제 반납일, 반납 기록이 한 번도 없으면 모델 입고일
     private LocalDate baseDateOf(ModelIdleRow row) {
-        LocalDateTime base = row.getLastReturnedAt() != null ? row.getLastReturnedAt() : row.getCreatedAt();
-        return base != null ? base.toLocalDate() : null;
+        LocalDateTime lastReturnedAt = row.getLastReturnedAt();
+        return lastReturnedAt == null ? row.getReceivedDate() : lastReturnedAt.toLocalDate();
     }
 
     // 정렬하려고 쿼리 한 줄과 계산한 일수를 잠깐 묶어 두는 상자 (이 클래스 안에서만 씀)
