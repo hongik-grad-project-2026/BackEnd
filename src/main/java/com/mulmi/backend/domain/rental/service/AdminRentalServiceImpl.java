@@ -106,20 +106,24 @@ public class AdminRentalServiceImpl implements AdminRentalService {
 
     // 관리자 대여 목록 (조회라 클래스의 readOnly 트랜잭션을 그대로 쓴다)
     @Override
-    public AdminRentalPageResponseDTO getAdminRentals(List<RentalStatus> statuses, String keyword, int page, int size) {
+    public AdminRentalPageResponseDTO getAdminRentals(
+            List<RentalStatus> statuses, String keyword, Long userId, int page, int size) {
         LocalDateTime now = LocalDateTime.now(KOREA);
 
         // 1. 상태 필터 나누기 (47과 공유)
         RentalStatusFilter filter = RentalStatusFilter.of(statuses);
 
         // 2. 한 페이지 조회 (정렬은 쿼리의 ORDER BY r.id DESC = 신청 최신순)
+        //    userId가 있으면 그 학생의 대여만 (없는 학생이면 빈 목록)
         Page<AdminRentalSummaryResponseDTO> responsePage = rentalRepository.searchAdminRentals(
                         filter.allStatuses(), filter.plainStatuses(), filter.wantRenting(), filter.wantOverdue(), now,
-                        normalizeKeyword(keyword), PageRequest.of(page, size))
+                        normalizeKeyword(keyword), userId, PageRequest.of(page, size))
                 .map(rental -> toAdminSummary(rental, now));
 
-        // 3. 탭 옆 숫자
-        Map<String, Long> statusCounts = toStatusCounts(rentalRepository.countByStatus(), rentalRepository.countOverdue(now));
+        // 3. 탭 옆 숫자 : 학생을 지정하면 그 학생 것만 센다 (47 내 대여 목록과 같은 쿼리)
+        Map<String, Long> statusCounts = userId == null
+                ? toStatusCounts(rentalRepository.countByStatus(), rentalRepository.countOverdue(now))
+                : toStatusCounts(rentalRepository.countByStatusAndUserId(userId), rentalRepository.countOverdueByUserId(userId, now));
         return AdminRentalPageResponseDTO.of(responsePage, statusCounts);
     }
 

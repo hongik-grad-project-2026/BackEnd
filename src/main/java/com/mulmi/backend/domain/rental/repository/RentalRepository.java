@@ -28,6 +28,7 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
             Long userId, Long semesterId, Collection<RentalStatus> statuses);
 
     // 관리자 대여 목록 (명세 50) : 연관 엔티티를 fetch join으로 한 번에 가져온다 (N+1 방지)
+    //  userId가 있으면 그 학생의 대여만 (회원 상세 > 대여내역, 명세 18번 대체)
     // 연체는 저장하지 않고 계산한다 : RENTING이면서 반납 예정 시각이 지난 것 (11-07 결정)
     //  - plainStatuses : RENTING·OVERDUE를 뺀 나머지 요청 상태 (비면 서비스가 OVERDUE를 넣는다 — DB에 저장되지 않는 값이라 아무것도 걸리지 않음)
     //  - wantRenting / wantOverdue : RENTING 행을 연체 여부로 나눠서 고른다
@@ -48,6 +49,7 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
                    OR u.studentId LIKE CONCAT('%', :keyword, '%')
                    OR m.name LIKE CONCAT('%', :keyword, '%')
                    OR i.labelCode LIKE CONCAT('%', :keyword, '%'))
+              AND (:userId IS NULL OR u.id = :userId)
             ORDER BY r.id DESC
             """,
             countQuery = """
@@ -65,6 +67,7 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
                    OR u.studentId LIKE CONCAT('%', :keyword, '%')
                    OR m.name LIKE CONCAT('%', :keyword, '%')
                    OR i.labelCode LIKE CONCAT('%', :keyword, '%'))
+              AND (:userId IS NULL OR u.id = :userId)
             """)
     Page<Rental> searchAdminRentals(
             @Param("allStatuses") boolean allStatuses,
@@ -73,6 +76,7 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
             @Param("wantOverdue") boolean wantOverdue,
             @Param("now") LocalDateTime now,
             @Param("keyword") String keyword,
+            @Param("userId") Long userId,
             Pageable pageable
     );
 

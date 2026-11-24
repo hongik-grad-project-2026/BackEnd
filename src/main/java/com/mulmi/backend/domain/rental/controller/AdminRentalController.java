@@ -51,18 +51,20 @@ public class AdminRentalController {
 
     // 관리자 대여 목록 (명세 50번) : 승인·현황·기록 화면이 status만 바꿔 가며 같이 쓴다
     //  status는 쉼표로 여러 개 (예 : READY_FOR_PICKUP,RENTING,OVERDUE), 없으면 전체
+    //  userId를 주면 그 학생의 대여만 (회원관리 > 회원 상세 > 대여내역 화면, 명세 18번 대체)
     @Operation(summary = "관리자 대여 목록")
     @GetMapping
     @PreAuthorize("hasAnyRole('ASSISTANT', 'WORKER')")
     public ApiResponse<AdminRentalPageResponseDTO> getAdminRentals(
             @RequestParam(required = false) List<RentalStatus> status,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long userId,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
         return ApiResponse.onSuccess(
                 RentalSuccessCode.RENTALS_FOUND,
-                adminRentalService.getAdminRentals(status, keyword, page, size)
+                adminRentalService.getAdminRentals(status, keyword, userId, page, size)
         );
     }
 

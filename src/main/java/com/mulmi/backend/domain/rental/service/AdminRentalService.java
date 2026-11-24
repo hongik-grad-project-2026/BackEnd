@@ -20,7 +20,7 @@ import com.mulmi.backend.domain.rental.dto.response.RentalRejectResponseDTO;
 public interface AdminRentalService {
 
     // 관리자 대여 목록 (명세 50번)
-    AdminRentalPageResponseDTO getAdminRentals(List<RentalStatus> statuses, String keyword, int page, int size);
+    AdminRentalPageResponseDTO getAdminRentals(List<RentalStatus> statuses, String keyword, Long userId, int page, int size);
 
     // 관리자 대여 상세 (명세 51번)
     AdminRentalDetailResponseDTO getAdminRental(Long rentalId);
