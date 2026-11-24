@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -25,7 +26,7 @@ public interface EquipmentModelRepository extends JpaRepository<EquipmentModel, 
         Long getModelId();
         String getModelName();
         String getCategoryName();
-        LocalDateTime getCreatedAt();
+        LocalDate getReceivedDate();
         LocalDateTime getLastReturnedAt();   // 반납 기록이 없으면 null
     }
 
@@ -37,7 +38,7 @@ public interface EquipmentModelRepository extends JpaRepository<EquipmentModel, 
             SELECT m.id AS modelId,
                    m.name AS modelName,
                    m.category.name AS categoryName,
-                   m.createdAt AS createdAt,
+                   m.receivedDate AS receivedDate,
                    (SELECT MAX(r.actualReturnAt) FROM Rental r
                      WHERE r.equipmentModel = m) AS lastReturnedAt
             FROM EquipmentModel m
