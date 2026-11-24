@@ -228,6 +228,7 @@ class BlacklistServiceImplTest {
                 item(100L, EquipmentItemStatus.AVAILABLE),
                 RentalStatus.RETURNED
         );
+        given(semesterRepository.findWithLockById(10L)).willReturn(Optional.of(current));
         given(semesterRepository.findFirstByStartDateGreaterThanOrderByStartDateAsc(current.getStartDate()))
                 .willReturn(Optional.of(next));
         given(userRepository.findWithLockById(1L)).willReturn(Optional.of(overdue.getUser()));

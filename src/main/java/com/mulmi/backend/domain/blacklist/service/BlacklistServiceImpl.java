@@ -112,9 +112,11 @@ public class BlacklistServiceImpl implements BlacklistService {
     @Override
     @Transactional
     public void registerOverdue(Rental rental, LocalDateTime now) {
+        Semester currentSemester = semesterRepository.findWithLockById(rental.getSemester().getId())
+                .orElseThrow(() -> new BlacklistException(BlacklistErrorCode.SEMESTER_NOT_FOUND));
         Semester nextSemester = semesterRepository
-                .findFirstByStartDateGreaterThanOrderByStartDateAsc(rental.getSemester().getStartDate())
-                .orElseGet(() -> createNextSemester(rental.getSemester()));
+                .findFirstByStartDateGreaterThanOrderByStartDateAsc(currentSemester.getStartDate())
+                .orElseGet(() -> createNextSemester(currentSemester));
         registerAutomatic(rental, nextSemester, BlacklistReasonType.OVERDUE, now);
     }
 
