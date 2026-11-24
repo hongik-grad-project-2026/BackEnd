@@ -5,5 +5,6 @@ package com.mulmi.backend.domain.rental.enums;
 public enum CancelReasonType {
     NO_LONGER_NEEDED,       // 필요 없어짐
     WRONG_APPLICATION_INFO, // 신청 정보 잘못 입력함
-    APPROVAL_DELAYED        // 승인이 늦음
+    APPROVAL_DELAYED,       // 승인이 늦음
+    BLACKLISTED             // 해당 학기 대여 제한 등록으로 자동 취소
 }

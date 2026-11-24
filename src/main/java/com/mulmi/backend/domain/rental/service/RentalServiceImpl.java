@@ -1,5 +1,6 @@
 package com.mulmi.backend.domain.rental.service;
 
+import com.mulmi.backend.domain.blacklist.service.BlacklistService;
 import com.mulmi.backend.domain.equipment.entity.Category;
 import com.mulmi.backend.domain.equipment.entity.EquipmentItem;
 import com.mulmi.backend.domain.equipment.entity.EquipmentModel;
@@ -61,6 +62,7 @@ public class RentalServiceImpl implements RentalService {
     private final S3StorageService s3StorageService;
     private final RentalImageRepository rentalImageRepository;
     private final RentalStockCounter rentalStockCounter;
+    private final BlacklistService blacklistService;
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
 
@@ -89,9 +91,7 @@ public class RentalServiceImpl implements RentalService {
         }
         ApplicationType applicationType = preApply ? ApplicationType.REGULAR : ApplicationType.ON_DEMAND;
 
-        // 2. 블랙리스트 : MVP에서 제외 (11-07 결정)
-
-        // 3. 모델: 존재하고 대여 가능(AVAILABLE)이어야 한다
+        // 2. 모델: 존재하고 대여 가능(AVAILABLE)이어야 한다
         //    공유 잠금으로 읽는다 : 잠금 순서를 모델 → 학생 → 기기로 맞춰 모델 폐기(모델 → 기기)와 교착하지 않게 한다
         //    (대여 INSERT의 외래 키 검사가 어차피 모델 행에 공유 잠금을 거는데, 기기를 잡은 뒤에 걸리면 순서가 반대가 된다)
         EquipmentModel model = equipmentModelRepository.findWithShareLockByIdAndDeletedAtIsNull(dto.modelId())
@@ -119,6 +119,10 @@ public class RentalServiceImpl implements RentalService {
         // 6-1. 계정 상태: 정지·탈퇴 계정은 토큰이 아직 유효해도 신청할 수 없다 (명세 46 처리 규칙 1)
         //      잠금으로 얻은 user를 그대로 쓰므로 조회가 더 나가지 않는다
         validateAccountStatus(user);
+
+        // 6-2. 해당 학기의 대여 제한 여부. 관리자 등록도 같은 사용자 행을 잠그므로
+        //      등록과 신청이 동시에 와도 둘 중 하나가 끝난 뒤 최신 제재 상태를 확인한다.
+        blacklistService.validateRentalEligibility(userId, semester.getId());
 
         // 7. 1인 1대: 같은 카테고리에 진행 중인 대여가 있으면 409
         if (rentalRepository.existsByUserIdAndEquipmentModelCategoryIdAndStatusIn(

@@ -22,6 +22,11 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
     boolean existsByUserIdAndEquipmentModelCategoryIdAndStatusIn(
             Long userId, Long categoryId, Collection<RentalStatus> statuses);
 
+    // 블랙리스트 등록 시 아직 수령하지 않은 대여를 취소하기 위해 대상 행을 잠근다.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Rental> findAllByUserIdAndSemesterIdAndStatusIn(
+            Long userId, Long semesterId, Collection<RentalStatus> statuses);
+
     // 관리자 대여 목록 (명세 50) : 연관 엔티티를 fetch join으로 한 번에 가져온다 (N+1 방지)
     // 연체는 저장하지 않고 계산한다 : RENTING이면서 반납 예정 시각이 지난 것 (11-07 결정)
     //  - plainStatuses : RENTING·OVERDUE를 뺀 나머지 요청 상태 (비면 서비스가 OVERDUE를 넣는다 — DB에 저장되지 않는 값이라 아무것도 걸리지 않음)
