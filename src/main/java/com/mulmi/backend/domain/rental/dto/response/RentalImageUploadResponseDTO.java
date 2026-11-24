@@ -1,5 +1,6 @@
 package com.mulmi.backend.domain.rental.dto.response;
 
+import com.mulmi.backend.domain.rental.enums.RentalImageSide;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
 
 import java.time.LocalDateTime;
@@ -10,6 +11,7 @@ public record RentalImageUploadResponseDTO(
         Long imageId,
         Long rentalId,
         RentalImageType imageType,
+        RentalImageSide imageSide,
         String imageUrl,
         LocalDateTime uploadedAt
 ) {

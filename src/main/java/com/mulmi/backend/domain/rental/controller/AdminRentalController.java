@@ -19,6 +19,7 @@ import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageListResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalReturnResponseDTO;
+import com.mulmi.backend.domain.rental.enums.RentalImageSide;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -134,7 +135,8 @@ public class AdminRentalController {
         );
     }
 
-    // 대여 사진 업로드 (명세 55번) : 수령·반납 처리 전에 기기 사진 1장
+    // 대여 사진 업로드 (명세 55번) : 수령·반납 처리 전에 기기 사진을 종류별 최대 2장(앞·뒤)
+    // imageSide는 선택 : 안 보내면 FRONT (1장만 올리던 화면이 그대로 동작하게)
     @Operation(summary = "대여 사진 업로드")
     @PostMapping(value = "/{rental_id}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
@@ -143,11 +145,12 @@ public class AdminRentalController {
             @PathVariable("rental_id") Long rentalId,
             @AuthenticationPrincipal Long userId,
             @RequestParam("imageType") RentalImageType imageType,
+            @RequestParam(value = "imageSide", required = false) RentalImageSide imageSide,
             @RequestPart("image") MultipartFile image
     ) {
         return ApiResponse.onSuccess(
                 RentalSuccessCode.RENTAL_IMAGE_UPLOADED,
-                adminRentalService.uploadRentalImage(rentalId, userId, imageType, image)
+                adminRentalService.uploadRentalImage(rentalId, userId, imageType, imageSide, image)
         );
     }
 

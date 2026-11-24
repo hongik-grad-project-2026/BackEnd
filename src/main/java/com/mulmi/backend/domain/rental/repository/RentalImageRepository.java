@@ -14,10 +14,9 @@ public interface RentalImageRepository extends JpaRepository<RentalImage, Long> 
     Optional<RentalImage> findByRentalIdAndImageTypeAndImageSide(
             Long rentalId, RentalImageType imageType, RentalImageSide imageSide);
 
-    // 대여 한 건의 사진 전부 (48 상세 : 수령·반납 사진, 최대 2장)
+    // 대여 한 건의 사진 전부 (48 상세 : 수령·반납 사진, 종류별 앞·뒤 최대 4장)
     List<RentalImage> findByRentalId(Long rentalId);
 
-    // 수령(54)·반납(57) 처리 전 사진이 있는지
-    boolean existsByRentalIdAndImageTypeAndImageSide(
-            Long rentalId, RentalImageType imageType, RentalImageSide imageSide);
+    // 수령(54)·반납(57) 처리 전 그 종류 사진이 1장 이상(앞·뒤 무관) 있는지
+    boolean existsByRentalIdAndImageType(Long rentalId, RentalImageType imageType);
 }
