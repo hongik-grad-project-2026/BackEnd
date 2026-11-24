@@ -7,6 +7,7 @@ import com.mulmi.backend.domain.rental.enums.RentalStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 // 내 대여 상세(명세 48)
 // status는 화면에 보여줄 상태 — 연체면 OVERDUE (명세의 overdue 필드 대신, 47과 같음)
@@ -34,8 +35,9 @@ public record RentalDetailResponseDTO(
         String rejectReasonDetail,
         CancelReasonType cancelReason,  // 학생이 취소했을 때만 (49)
         LocalDateTime canceledAt,
-        String pickupImageUrl,          // 수령 당시 사진 (없으면 null)
-        String returnImageUrl,          // 반납 당시 사진 (없으면 null)
+        String pickupImageUrl,          // 수령 당시 사진 1장 (앞면 우선, 없으면 null) — 예전 화면 호환용
+        String returnImageUrl,          // 반납 당시 사진 1장 (앞면 우선, 없으면 null) — 예전 화면 호환용
+        List<RentalImageResponseDTO> images,   // 수령·반납 사진 전부 (종류별 앞·뒤 최대 2장, 51 관리자 상세와 같은 형식)
         LocalDateTime createdAt
 ) {
 }

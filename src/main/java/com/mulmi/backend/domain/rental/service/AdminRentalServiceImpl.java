@@ -417,7 +417,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
                 wasOverdue);
     }
 
-    // 대여 사진 업로드 (명세 55번) : 1장(FRONT)만, 같은 종류는 교체
+    // 대여 사진 업로드 (명세 55번) : 종류별 앞·뒤 최대 2장, 같은 종류·같은 방향은 교체
     @Override
     @Transactional
     public RentalImageUploadResponseDTO uploadRentalImage(
