@@ -143,7 +143,7 @@ class BlacklistServiceImplTest {
                 .reasonType(BlacklistReasonType.MANUAL)
                 .build();
         given(userRepository.findById(2L)).willReturn(Optional.of(administrator));
-        given(blacklistRepository.findById(100L)).willReturn(Optional.of(blacklist));
+        given(blacklistRepository.findWithLockById(100L)).willReturn(Optional.of(blacklist));
 
         BlacklistResponseDTO result = blacklistService.release(2L, 100L, "  소명 확인  ");
 
@@ -165,7 +165,7 @@ class BlacklistServiceImplTest {
                 .build();
         blacklist.release(administrator, "이미 해제", java.time.LocalDateTime.now());
         given(userRepository.findById(2L)).willReturn(Optional.of(administrator));
-        given(blacklistRepository.findById(100L)).willReturn(Optional.of(blacklist));
+        given(blacklistRepository.findWithLockById(100L)).willReturn(Optional.of(blacklist));
 
         assertThatThrownBy(() -> blacklistService.release(2L, 100L, "다시 해제"))
                 .isInstanceOf(BlacklistException.class)
@@ -229,7 +229,7 @@ class BlacklistServiceImplTest {
                 RentalStatus.RETURNED
         );
         given(semesterRepository.findWithLockById(10L)).willReturn(Optional.of(current));
-        given(semesterRepository.findFirstByStartDateGreaterThanOrderByStartDateAsc(current.getStartDate()))
+        given(semesterRepository.findNextWithLock(current.getStartDate()))
                 .willReturn(Optional.of(next));
         given(userRepository.findWithLockById(1L)).willReturn(Optional.of(overdue.getUser()));
 

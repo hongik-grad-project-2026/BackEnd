@@ -14,6 +14,8 @@ ALTER TABLE blacklists
 
 -- 2. 기존 기록은 수동 등록 이력으로 옮긴다.
 --    start_date보다 늦지 않은 학기 중 가장 최근 학기를 제재 학기로 사용한다.
+--    이미 삭제됐거나 종료일이 지난 기록은 해제 이력으로 옮기고,
+--    아직 종료되지 않은 기록만 해당 학기의 활성 제재로 유지한다.
 UPDATE blacklists b
 SET b.semester_id = (
         SELECT s.semester_id
@@ -26,10 +28,12 @@ SET b.semester_id = (
     b.reason_detail = b.reason,
     b.released_at = CASE
         WHEN b.deleted_at IS NOT NULL THEN b.deleted_at
+        WHEN b.end_date < CURRENT_DATE THEN CAST(CONCAT(b.end_date, ' 23:59:59.999999') AS DATETIME(6))
         ELSE NULL
     END,
     b.release_reason = CASE
         WHEN b.deleted_at IS NOT NULL THEN '기존 소프트 삭제 이력 마이그레이션'
+        WHEN b.end_date < CURRENT_DATE THEN '기존 제재 기간 만료 이력 마이그레이션'
         ELSE NULL
     END;
 

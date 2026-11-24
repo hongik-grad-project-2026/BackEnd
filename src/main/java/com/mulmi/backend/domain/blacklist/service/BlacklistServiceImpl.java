@@ -86,7 +86,7 @@ public class BlacklistServiceImpl implements BlacklistService {
     @Transactional
     public BlacklistResponseDTO release(Long administratorId, Long blacklistId, String releaseReason) {
         User administrator = findAdministrator(administratorId);
-        Blacklist blacklist = blacklistRepository.findById(blacklistId)
+        Blacklist blacklist = blacklistRepository.findWithLockById(blacklistId)
                 .orElseThrow(() -> new BlacklistException(BlacklistErrorCode.BLACKLIST_NOT_FOUND));
         if (!blacklist.isActive()) {
             throw new BlacklistException(BlacklistErrorCode.BLACKLIST_ALREADY_RELEASED);
@@ -115,7 +115,7 @@ public class BlacklistServiceImpl implements BlacklistService {
         Semester currentSemester = semesterRepository.findWithLockById(rental.getSemester().getId())
                 .orElseThrow(() -> new BlacklistException(BlacklistErrorCode.SEMESTER_NOT_FOUND));
         Semester nextSemester = semesterRepository
-                .findFirstByStartDateGreaterThanOrderByStartDateAsc(currentSemester.getStartDate())
+                .findNextWithLock(currentSemester.getStartDate())
                 .orElseGet(() -> createNextSemester(currentSemester));
         registerAutomatic(rental, nextSemester, BlacklistReasonType.OVERDUE, now);
     }
