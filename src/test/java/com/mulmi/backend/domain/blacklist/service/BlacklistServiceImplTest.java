@@ -19,6 +19,7 @@ import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import com.mulmi.backend.domain.rental.exception.RentalException;
 import com.mulmi.backend.domain.rental.exception.code.RentalErrorCode;
 import com.mulmi.backend.domain.rental.repository.RentalRepository;
+import com.mulmi.backend.domain.rental.stock.RentalStockCounter;
 import com.mulmi.backend.domain.semester.entity.Semester;
 import com.mulmi.backend.domain.semester.repository.SemesterRepository;
 import com.mulmi.backend.domain.user.entity.User;
@@ -58,6 +59,9 @@ class BlacklistServiceImplTest {
 
     @Mock
     private RentalRepository rentalRepository;
+
+    @Mock
+    private RentalStockCounter rentalStockCounter;
 
     @InjectMocks
     private BlacklistServiceImpl blacklistService;
@@ -206,6 +210,7 @@ class BlacklistServiceImplTest {
         assertThat(pending.getStatus()).isEqualTo(RentalStatus.CANCELED);
         assertThat(pending.getCancelReason()).isEqualTo(CancelReasonType.BLACKLISTED);
         assertThat(reservedItem.getStatus()).isEqualTo(EquipmentItemStatus.AVAILABLE);
+        verify(rentalStockCounter).addAfterCommit(50L, 1);
     }
 
     @Test
