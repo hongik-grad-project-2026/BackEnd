@@ -4,6 +4,7 @@ import com.mulmi.backend.domain.notice.entity.Notice;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -43,4 +44,14 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     );
 
     Optional<Notice> findByIdAndDeletedAtIsNull(Long noticeId);
+
+    // 동시에 상세 조회해도 증가분을 잃지 않도록 DB에서 한 문장으로 더한다.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Notice n
+            SET n.viewCount = n.viewCount + 1
+            WHERE n.id = :noticeId
+              AND n.deletedAt IS NULL
+            """)
+    int incrementViewCount(@Param("noticeId") Long noticeId);
 }

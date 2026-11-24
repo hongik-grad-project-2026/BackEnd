@@ -92,8 +92,17 @@ public class NoticeServiceImpl implements NoticeService {
                 important,
                 pageable
         );
+        List<Long> noticeIds = notices.getContent().stream()
+                .map(Notice::getId)
+                .toList();
+        Set<Long> noticeIdsWithAttachments = noticeIds.isEmpty()
+                ? Set.of()
+                : noticeAttachmentRepository.findNoticeIdsWithAttachments(noticeIds);
         Page<NoticeSummaryResponseDTO> responsePage = notices.map(
-                NoticeConverter::toNoticeSummaryResponseDTO
+                notice -> NoticeConverter.toNoticeSummaryResponseDTO(
+                        notice,
+                        noticeIdsWithAttachments.contains(notice.getId())
+                )
         );
 
         return NoticePageResponseDTO.from(responsePage);
@@ -107,7 +116,11 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     @Override
+    @Transactional
     public NoticeDetailResponseDTO getNotice(Long noticeId) {
+        if (noticeRepository.incrementViewCount(noticeId) == 0) {
+            throw new NoticeException(NoticeErrorCode.NOTICE_NOT_FOUND);
+        }
         Notice notice = noticeRepository.findByIdAndDeletedAtIsNull(noticeId)
                 .orElseThrow(() -> new NoticeException(NoticeErrorCode.NOTICE_NOT_FOUND));
 

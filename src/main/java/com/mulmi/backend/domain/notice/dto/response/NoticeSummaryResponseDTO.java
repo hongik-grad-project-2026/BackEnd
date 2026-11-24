@@ -6,6 +6,8 @@ public record NoticeSummaryResponseDTO(
         Long noticeId,
         String title,
         boolean important,
+        boolean hasAttachment,
+        long viewCount,
         Long authorId,
         String authorName,
         LocalDateTime createdAt
