@@ -7,6 +7,7 @@ import com.mulmi.backend.domain.rental.dto.response.RentalCheckoutResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageListResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalImageUploadResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalReturnResponseDTO;
+import com.mulmi.backend.domain.rental.enums.RentalImageSide;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
 import com.mulmi.backend.domain.rental.enums.RentalStatus;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,7 +47,7 @@ public interface AdminRentalService {
 
     // 대여 사진 업로드 (명세 55번)
     RentalImageUploadResponseDTO uploadRentalImage(
-            Long rentalId, Long uploaderId, RentalImageType imageType, MultipartFile image);
+            Long rentalId, Long uploaderId, RentalImageType imageType, RentalImageSide imageSide, MultipartFile image);
 
     // 대여 반려 (명세 53번)
     RentalRejectResponseDTO rejectRental(Long rentalId, Long assistantId, RentalRejectRequestDTO dto);

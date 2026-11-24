@@ -337,11 +337,10 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 승인 후 수령 전에 제재가 등록된 경우도 수령할 수 없다.
         blacklistService.validateRentalEligibility(rental.getUser().getId(), rental.getSemester().getId());
 
-        // 3. 수령 사진 : 사진 필수 카테고리(노트북·태블릿)는 55번으로 올린 사진이 있어야 한다
+        // 3. 수령 사진 : 사진 필수 카테고리(노트북·태블릿)는 55번으로 올린 수령 사진이 1장 이상(앞·뒤 무관) 있어야 한다
         Category category = rental.getEquipmentModel().getCategory();
         if (category.isPickupPhotoRequired()
-                && !rentalImageRepository.existsByRentalIdAndImageTypeAndImageSide(
-                        rentalId, RentalImageType.PICKUP, RentalImageSide.FRONT)) {
+                && !rentalImageRepository.existsByRentalIdAndImageType(rentalId, RentalImageType.PICKUP)) {
             throw new RentalException(RentalErrorCode.PICKUP_IMAGE_REQUIRED);
         }
 
@@ -385,11 +384,10 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         // 현재 시각은 잠금을 얻은 뒤에 잰다 (54와 같은 이유 : 연체 판단과 반납 시각이 잠금 대기 전 값이 되지 않게)
         LocalDateTime now = LocalDateTime.now(KOREA);
 
-        // 2. 반납 사진 : 수령 사진 필수 카테고리(노트북·태블릿)만 반납 때도 필수 (11-07 결정)
+        // 2. 반납 사진 : 수령 사진 필수 카테고리(노트북·태블릿)만 반납 때도 1장 이상 필수 (11-07 결정, 11-24 앞·뒤 무관)
         Category category = rental.getEquipmentModel().getCategory();
         if (category.isPickupPhotoRequired()
-                && !rentalImageRepository.existsByRentalIdAndImageTypeAndImageSide(
-                        rentalId, RentalImageType.RETURN, RentalImageSide.FRONT)) {
+                && !rentalImageRepository.existsByRentalIdAndImageType(rentalId, RentalImageType.RETURN)) {
             throw new RentalException(RentalErrorCode.RETURN_IMAGE_REQUIRED);
         }
 
@@ -419,7 +417,10 @@ public class AdminRentalServiceImpl implements AdminRentalService {
     @Override
     @Transactional
     public RentalImageUploadResponseDTO uploadRentalImage(
-            Long rentalId, Long uploaderId, RentalImageType imageType, MultipartFile image) {
+            Long rentalId, Long uploaderId, RentalImageType imageType, RentalImageSide imageSide, MultipartFile image) {
+        // 방향을 안 보내면 앞면 : 1장만 올리던 요청은 예전처럼 FRONT 한 장을 교체한다 (11-24 앞·뒤 2장 허용)
+        RentalImageSide side = imageSide == null ? RentalImageSide.FRONT : imageSide;
+
         // 1. 파일 검사 : DB를 보지 않는 검사라 잠금보다 먼저
         validateRentalImage(image);
 
@@ -434,9 +435,10 @@ public class AdminRentalServiceImpl implements AdminRentalService {
             throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
         }
 
-        // 3. 같은 종류 사진이 이미 있나 (있으면 교체 : 커밋 후 지울 옛 파일 키를 기억해 둔다)
+        // 3. 같은 종류·같은 방향 사진이 이미 있나 (있으면 교체 : 커밋 후 지울 옛 파일 키를 기억해 둔다)
+        //    방향이 다르면 다른 사진이다 → 앞면을 올린 뒤 뒷면을 올려도 앞면은 남는다
         RentalImage rentalImage = rentalImageRepository
-                .findByRentalIdAndImageTypeAndImageSide(rentalId, imageType, RentalImageSide.FRONT)
+                .findByRentalIdAndImageTypeAndImageSide(rentalId, imageType, side)
                 .orElse(null);
         String previousObjectKey = rentalImage == null ? null : rentalImage.getImageUrl();
 
@@ -462,7 +464,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
             rentalImage = RentalImage.builder()
                     .rental(rental)
                     .imageType(imageType)
-                    .imageSide(RentalImageSide.FRONT)
+                    .imageSide(side)
                     .imageUrl(objectKey)
                     .uploadedBy(uploader)
                     .build();
@@ -473,7 +475,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         rentalImage = rentalImageRepository.saveAndFlush(rentalImage);
 
         return new RentalImageUploadResponseDTO(
-                rentalImage.getId(), rentalId, imageType,
+                rentalImage.getId(), rentalId, imageType, side,
                 s3StorageService.createDownloadUrl(objectKey), rentalImage.getUpdatedAt());
     }
 
