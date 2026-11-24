@@ -24,11 +24,16 @@ public class NoticeConverter {
                 .build();
     }
 
-    public static NoticeSummaryResponseDTO toNoticeSummaryResponseDTO(Notice notice) {
+    public static NoticeSummaryResponseDTO toNoticeSummaryResponseDTO(
+            Notice notice,
+            boolean hasAttachment
+    ) {
         return new NoticeSummaryResponseDTO(
                 notice.getId(),
                 notice.getTitle(),
                 notice.isImportant(),
+                hasAttachment,
+                notice.getViewCount(),
                 notice.getAuthor().getId(),
                 notice.getAuthor().getName(),
                 notice.getCreatedAt()

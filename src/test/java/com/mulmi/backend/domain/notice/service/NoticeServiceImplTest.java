@@ -32,6 +32,7 @@ import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -65,6 +66,7 @@ class NoticeServiceImplTest {
                 .title("대여실 운영 안내")
                 .content("운영 시간을 안내합니다.")
                 .important(true)
+                .viewCount(7L)
                 .author(author)
                 .build();
         PageRequest pageable = PageRequest.of(
@@ -75,6 +77,8 @@ class NoticeServiceImplTest {
         );
         given(noticeRepository.findNotices(null, null, pageable))
                 .willReturn(new PageImpl<>(List.of(notice), pageable, 1));
+        given(noticeAttachmentRepository.findNoticeIdsWithAttachments(List.of(1L)))
+                .willReturn(Set.of(1L));
 
         NoticePageResponseDTO result = noticeService.getNotices(null, null, 0, 20);
 
@@ -82,6 +86,8 @@ class NoticeServiceImplTest {
         assertThat(result.notices().get(0).noticeId()).isEqualTo(1L);
         assertThat(result.notices().get(0).title()).isEqualTo("대여실 운영 안내");
         assertThat(result.notices().get(0).important()).isTrue();
+        assertThat(result.notices().get(0).hasAttachment()).isTrue();
+        assertThat(result.notices().get(0).viewCount()).isEqualTo(7L);
         assertThat(result.notices().get(0).authorId()).isEqualTo(2L);
         assertThat(result.notices().get(0).authorName()).isEqualTo("조교");
         assertThat(result.totalElements()).isEqualTo(1);
@@ -154,6 +160,7 @@ class NoticeServiceImplTest {
                 .important(true)
                 .author(author)
                 .build();
+        given(noticeRepository.incrementViewCount(1L)).willReturn(1);
         given(noticeRepository.findByIdAndDeletedAtIsNull(1L))
                 .willReturn(Optional.of(notice));
 
@@ -169,8 +176,7 @@ class NoticeServiceImplTest {
 
     @Test
     void getNoticeThrowsWhenNoticeDoesNotExist() {
-        given(noticeRepository.findByIdAndDeletedAtIsNull(999L))
-                .willReturn(Optional.empty());
+        given(noticeRepository.incrementViewCount(999L)).willReturn(0);
 
         assertThatThrownBy(() -> noticeService.getNotice(999L))
                 .isInstanceOf(NoticeException.class)

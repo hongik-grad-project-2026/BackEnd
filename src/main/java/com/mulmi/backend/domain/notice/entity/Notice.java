@@ -38,6 +38,10 @@ public class Notice extends BaseEntity {
     @Column(nullable = false)
     private boolean important;
 
+    @Builder.Default
+    @Column(name = "view_count", nullable = false)
+    private long viewCount = 0L;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
