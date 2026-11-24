@@ -16,7 +16,9 @@ import com.mulmi.backend.domain.rental.dto.request.RentalCancelRequestDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalCancelResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalCreateResponseDTO;
 import com.mulmi.backend.domain.rental.dto.response.RentalDetailResponseDTO;
+import com.mulmi.backend.domain.rental.dto.response.RentalImageResponseDTO;
 import com.mulmi.backend.domain.rental.entity.RentalImage;
+import com.mulmi.backend.domain.rental.enums.RentalImageSide;
 import com.mulmi.backend.domain.rental.enums.RentalImageType;
 import com.mulmi.backend.domain.rental.repository.RentalImageRepository;
 import com.mulmi.backend.domain.rental.dto.response.RentalPageResponseDTO;
@@ -204,16 +206,29 @@ public class RentalServiceImpl implements RentalService {
         Rental rental = rentalRepository.findMyRental(rentalId, userId)
                 .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_FOUND));
 
-        // 2. 수령·반납 사진 : 종류별 S3 키 → 조회 URL (없으면 null)
+        // 2. 수령·반납 사진 (11-24 앞·뒤 2장 저장에 맞춤)
+        //    images : 전부 담는다 (51 관리자 상세와 같은 형식)
+        //    pickupImageUrl·returnImageUrl : 종류별 1장만 쓰던 화면용. 앞면이 있으면 앞면, 없으면 뒷면
+        //    (칸이 하나라 반복문에서 그냥 덮어쓰면 마지막에 읽힌 1장만 남는다 → 앞면을 우선한다)
+        List<RentalImage> rentalImages = rentalImageRepository.findByRentalId(rental.getId());
         String pickupImageKey = null;
         String returnImageKey = null;
-        for (RentalImage image : rentalImageRepository.findByRentalId(rental.getId())) {
-            if (image.getImageType() == RentalImageType.PICKUP) {
+        for (RentalImage image : rentalImages) {
+            boolean front = image.getImageSide() == RentalImageSide.FRONT;
+            if (image.getImageType() == RentalImageType.PICKUP && (pickupImageKey == null || front)) {
                 pickupImageKey = image.getImageUrl();
-            } else if (image.getImageType() == RentalImageType.RETURN) {
+            } else if (image.getImageType() == RentalImageType.RETURN && (returnImageKey == null || front)) {
                 returnImageKey = image.getImageUrl();
             }
         }
+        List<RentalImageResponseDTO> images = rentalImages.stream()
+                .map(image -> new RentalImageResponseDTO(
+                        image.getId(),
+                        image.getImageType(),
+                        image.getImageSide(),
+                        s3StorageService.createDownloadUrl(image.getImageUrl()),
+                        image.getUpdatedAt()))
+                .toList();
 
         // 3. 응답 (모델·카테고리·기기는 fetch join으로 이미 들어와 있다)
         EquipmentModel model = rental.getEquipmentModel();
@@ -241,6 +256,7 @@ public class RentalServiceImpl implements RentalService {
                 rental.getCanceledAt(),
                 s3StorageService.createDownloadUrl(pickupImageKey),
                 s3StorageService.createDownloadUrl(returnImageKey),
+                images,
                 rental.getCreatedAt()
         );
     }
