@@ -28,7 +28,9 @@ public class RentalStockCounter {
     // 키가 없는 동안 증감이 무시됐다는 표시. 재동기화는 이 표시가 있는 모델의 키를 만들지 않는다
     private static final String MISSED_PREFIX = "rental:stock:missed:";
 
-    // Redis가 죽어 키를 못 지웠을 때 대비 : 값 = 믿지 않기 시작한 시각(ns). decrease가 Redis를 보지 않고 DB로 보낸다
+    // 믿지 않는 모델 : Redis 장애로 키를 못 지웠거나(invalidate 실패), 그 뒤 증감을 건너뛴 모델. decrease가 Redis를 보지 않고 DB로 보낸다
+    //  값 = 마지막으로 무효화에 실패했거나 증감을 건너뛴 시각(ns). 이 시각 뒤에 시작한 재동기화가 SET에 성공해야 풀린다
+    //  시각은 항상 compute 계열 람다 안에서 잰다 : 밖에서 잰 시각을 늦게 쓰면 그 사이 기록된 더 새 시각을 과거로 덮는다
     private final Map<Long, Long> untrusted = new ConcurrentHashMap<>();
     // 커밋 직전부터 Redis 반영(콜백)이 끝날 때까지 진행 중인 증감 수 (모델별, 서버 1대 기준)
     //  재동기화는 이 수가 남은 모델을 SET하지 않는다 : DB 집계에 이미 들어간 변경을 늦은 콜백이 한 번 더 적용하는 것을 막기 위해
@@ -150,7 +152,9 @@ public class RentalStockCounter {
     //  - 키 삭제 ~ SET 사이 신청 : 키가 없으므로 DB로 처리
     //  - 키 삭제 ~ SET 사이 증감 : 누락 표시가 남아 SET을 건너뜀 (집계에 들어갔는지 알 수 없으므로) → 키 없이 DB로, 다음 주기에 다시
     //  - 커밋은 집계 전, 콜백은 SET 뒤 : 늦은 콜백이 한 번 더 적용됨 → SET 직전 inFlight가 남은 모델은 건너뜀
-    // 반환 : 시작 시각. 그 전에 믿지 않게 된 모델만 SET 성공 후 다시 믿는다
+    //  - 믿지 않는 모델의 증감은 Redis를 부르지 않아 누락 표시가 없다 → SET은 되지만, 믿지 않음 시각이 이 재동기화 시작 뒤로
+    //    갱신돼 있으면 SET 뒤에도 계속 DB로 판단한다 (다음 주기에 다시)
+    // 반환 : 시작 시각. 마지막 믿지 않음 시각이 이보다 앞선 모델만 SET 성공 후 다시 믿는다
     public long beginResync(List<Long> modelIds) {
         long startedAt = System.nanoTime();
         List<String> keys = new ArrayList<>();
@@ -185,6 +189,13 @@ public class RentalStockCounter {
 
     // 증감 실행. 실패하면 숫자가 실제와 어긋났으므로 이 모델을 믿지 않는다
     private void apply(Long modelId, long delta) {
+        // 믿지 않는 모델은 Redis를 부르지 않는다 : Redis가 멈춰 있으면 부를 때마다 타임아웃(약 1.2초)을 기다린다
+        //  건너뛴 증감은 누락 표시를 남기지 않고, 진행 중인 재동기화의 집계에서 빠졌을 수 있다
+        //  → 믿지 않음 시각을 지금으로 갱신해, 그 재동기화가 SET에 성공해도 이 모델을 계속 믿지 않게 한다
+        //  (이 모델은 시작 뒤 건너뛴 증감이 없고 SET에 성공한 재동기화에서 풀린다)
+        if (untrusted.computeIfPresent(modelId, (id, since) -> System.nanoTime()) != null) {
+            return;
+        }
         try {
             redisTemplate.execute(ADD_SCRIPT, List.of(key(modelId), missedKey(modelId)), String.valueOf(delta));
         } catch (RuntimeException e) {
@@ -199,7 +210,7 @@ public class RentalStockCounter {
             redisTemplate.execute(INVALIDATE_SCRIPT, List.of(key(modelId), missedKey(modelId)));
         } catch (RuntimeException e) {
             log.warn("Redis 재고 키 삭제 실패, 재동기화까지 DB로 판단: modelId={}", modelId);
-            untrusted.put(modelId, System.nanoTime());
+            untrusted.compute(modelId, (id, previous) -> System.nanoTime());
         }
     }
 

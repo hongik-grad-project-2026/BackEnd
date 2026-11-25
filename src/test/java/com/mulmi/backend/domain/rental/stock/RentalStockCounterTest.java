@@ -24,7 +24,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 // 자바 쪽 순서 처리(진행 중 증감, 믿지 않음 표시)를 실행 순서를 강제해 검증한다. Redis는 모의 객체
 // (누락 표시와 조건부 SET은 Redis 스크립트 안의 동작이라 실제 Redis로 따로 확인했다)
@@ -105,6 +107,47 @@ class RentalStockCounterTest {
         counter.finishResync(Map.of(MODEL, 5L), startedAt, TTL);
 
         given(redisTemplate.execute(any(RedisScript.class), eq(List.of(KEY)))).willReturn(4L);
+        assertThat(counter.decrease(MODEL)).isEqualTo(4L);
+    }
+
+    // Redis가 멈춰 믿지 않게 된 모델은 다음 증감부터 Redis를 부르지 않는다 (부를 때마다 타임아웃을 기다리지 않게)
+    @Test
+    void untrustedModelSkipsRedisOnNextChange() {
+        given(redisTemplate.execute(any(RedisScript.class), eq(List.of(KEY, MISSED_KEY)), eq("1")))
+                .willThrow(new QueryTimeoutException("timeout"));
+        given(redisTemplate.execute(any(RedisScript.class), eq(List.of(KEY, MISSED_KEY))))
+                .willThrow(new QueryTimeoutException("timeout"));
+
+        counter.increase(MODEL);   // 반영·키 삭제 모두 실패 → 믿지 않음
+        clearInvocations(redisTemplate);
+
+        counter.increase(MODEL);   // Redis와 전혀 주고받지 않아야 한다
+        verifyNoInteractions(redisTemplate);
+    }
+
+    // 재동기화 도중 건너뛴 증감은 그 재동기화 집계에서 빠졌을 수 있다
+    //  → 그 재동기화가 키를 써도 계속 DB로 판단하고, 다음 재동기화가 끝나야 Redis를 본다
+    @Test
+    void changeSkippedDuringResyncKeepsModelOnDatabaseUntilNextResync() {
+        given(redisTemplate.execute(any(RedisScript.class), eq(List.of(KEY, MISSED_KEY)), eq("1")))
+                .willThrow(new QueryTimeoutException("timeout"));
+        given(redisTemplate.execute(any(RedisScript.class), eq(List.of(KEY, MISSED_KEY))))
+                .willThrow(new QueryTimeoutException("timeout"));
+        counter.increase(MODEL);   // 믿지 않음
+
+        given(redisTemplate.execute(any(RedisScript.class), eq(List.of(KEY, MISSED_KEY)), eq("5"), eq("180000")))
+                .willReturn(1L);
+        long startedAt = counter.beginResync(List.of(MODEL));
+        counter.increase(MODEL);   // 재동기화 도중 : 건너뜀
+        counter.finishResync(Map.of(MODEL, 5L), startedAt, TTL);
+        // SET은 성공했지만, 차감은 Redis를 보지 않고 DB로 보낸다
+        verify(redisTemplate).execute(any(RedisScript.class), eq(List.of(KEY, MISSED_KEY)), eq("5"), eq("180000"));
+        given(redisTemplate.execute(any(RedisScript.class), eq(List.of(KEY)))).willReturn(4L);
+        assertThat(counter.decrease(MODEL)).isNull();
+        verify(redisTemplate, never()).execute(any(RedisScript.class), eq(List.of(KEY)));
+
+        long nextStartedAt = counter.beginResync(List.of(MODEL));
+        counter.finishResync(Map.of(MODEL, 5L), nextStartedAt, TTL);
         assertThat(counter.decrease(MODEL)).isEqualTo(4L);
     }
 
