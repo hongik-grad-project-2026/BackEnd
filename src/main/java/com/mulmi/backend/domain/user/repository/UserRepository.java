@@ -39,35 +39,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
             SELECT u
             FROM User u
             WHERE u.role = :role
-              AND (
-                    :status IS NULL
-                    OR (
-                        :status = com.mulmi.backend.domain.user.enums.UserStatus.ACTIVE
-                        AND u.status = com.mulmi.backend.domain.user.enums.UserStatus.ACTIVE
-                        AND NOT EXISTS (
-                            SELECT b.id
-                            FROM Blacklist b
-                            WHERE b.user = u
-                              AND b.releasedAt IS NULL
-                        )
-                    )
-                    OR (
-                        :status = com.mulmi.backend.domain.user.enums.UserStatus.SUSPENDED
-                        AND (
-                            u.status = com.mulmi.backend.domain.user.enums.UserStatus.SUSPENDED
-                            OR EXISTS (
-                                SELECT b.id
-                                FROM Blacklist b
-                                WHERE b.user = u
-                                  AND b.releasedAt IS NULL
-                            )
-                        )
-                    )
-                    OR (
-                        :status = com.mulmi.backend.domain.user.enums.UserStatus.WITHDRAWN
-                        AND u.status = com.mulmi.backend.domain.user.enums.UserStatus.WITHDRAWN
-                    )
-                  )
               AND (:college IS NULL OR u.college = :college)
               AND (:department IS NULL OR u.department = :department)
               AND (
@@ -84,7 +55,101 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Page<User> findUsers(
             @Param("role") UserRole role,
             @Param("keyword") String keyword,
-            @Param("status") UserStatus status,
+            @Param("college") String college,
+            @Param("department") String department,
+            @Param("excludeDepartment") String excludeDepartment,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT u
+            FROM User u
+            WHERE u.role = :role
+              AND u.status = com.mulmi.backend.domain.user.enums.UserStatus.ACTIVE
+              AND NOT EXISTS (
+                    SELECT b.id
+                    FROM Blacklist b
+                    WHERE b.user = u
+                      AND b.releasedAt IS NULL
+                  )
+              AND (:college IS NULL OR u.college = :college)
+              AND (:department IS NULL OR u.department = :department)
+              AND (
+                    :excludeDepartment IS NULL
+                    OR u.department IS NULL
+                    OR u.department <> :excludeDepartment
+                  )
+              AND (
+                    :keyword IS NULL
+                    OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.studentId) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                  )
+            """)
+    Page<User> findActiveUsers(
+            @Param("role") UserRole role,
+            @Param("keyword") String keyword,
+            @Param("college") String college,
+            @Param("department") String department,
+            @Param("excludeDepartment") String excludeDepartment,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT u
+            FROM User u
+            WHERE u.role = :role
+              AND (
+                    u.status = com.mulmi.backend.domain.user.enums.UserStatus.SUSPENDED
+                    OR EXISTS (
+                        SELECT b.id
+                        FROM Blacklist b
+                        WHERE b.user = u
+                          AND b.releasedAt IS NULL
+                    )
+                  )
+              AND (:college IS NULL OR u.college = :college)
+              AND (:department IS NULL OR u.department = :department)
+              AND (
+                    :excludeDepartment IS NULL
+                    OR u.department IS NULL
+                    OR u.department <> :excludeDepartment
+                  )
+              AND (
+                    :keyword IS NULL
+                    OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.studentId) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                  )
+            """)
+    Page<User> findSuspendedUsers(
+            @Param("role") UserRole role,
+            @Param("keyword") String keyword,
+            @Param("college") String college,
+            @Param("department") String department,
+            @Param("excludeDepartment") String excludeDepartment,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT u
+            FROM User u
+            WHERE u.role = :role
+              AND u.status = com.mulmi.backend.domain.user.enums.UserStatus.WITHDRAWN
+              AND (:college IS NULL OR u.college = :college)
+              AND (:department IS NULL OR u.department = :department)
+              AND (
+                    :excludeDepartment IS NULL
+                    OR u.department IS NULL
+                    OR u.department <> :excludeDepartment
+                  )
+              AND (
+                    :keyword IS NULL
+                    OR LOWER(u.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                    OR LOWER(u.studentId) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                  )
+            """)
+    Page<User> findWithdrawnUsers(
+            @Param("role") UserRole role,
+            @Param("keyword") String keyword,
             @Param("college") String college,
             @Param("department") String department,
             @Param("excludeDepartment") String excludeDepartment,
