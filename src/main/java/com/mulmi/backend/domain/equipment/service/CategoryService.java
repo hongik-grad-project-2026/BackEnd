@@ -11,8 +11,8 @@ public interface CategoryService {
     // 카테고리 등록
     CategoryResponseDTO createCategory(CategoryCreateRequestDTO dto);
 
-    // 카테고리 목록 조회
-    List<CategoryResponseDTO> getCategories();
+    // 카테고리 목록 조회 (학생이면 졸업전시 경품 카테고리를 뺀다)
+    List<CategoryResponseDTO> getCategories(boolean student);
 
     // 카테고리 수정
     CategoryResponseDTO updateCategory(Long categoryId, CategoryUpdateRequestDTO dto);

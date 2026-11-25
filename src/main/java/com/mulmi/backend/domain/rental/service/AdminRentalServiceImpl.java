@@ -65,6 +65,7 @@ public class AdminRentalServiceImpl implements AdminRentalService {
     private final S3StorageService s3StorageService;
     private final RentalStockCounter rentalStockCounter;
     private final BlacklistService blacklistService;
+    private final SnackDraw snackDraw;
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
     private static final long MAX_RENTAL_IMAGE_SIZE = 10 * 1024 * 1024;
@@ -384,12 +385,16 @@ public class AdminRentalServiceImpl implements AdminRentalService {
         if (rental.getStatus() != RentalStatus.RENTING) {
             throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
         }
+        // 1-1. 졸업전시 간식은 반납이 없다 : 반납하면 기기가 AVAILABLE로 돌아가 이미 준 간식이 재고로 다시 잡힌다
+        Category category = rental.getEquipmentModel().getCategory();
+        if (snackDraw.isSnack(category) || snackDraw.isPrize(category)) {
+            throw new RentalException(RentalErrorCode.INVALID_RENTAL_STATUS);
+        }
 
         // 현재 시각은 잠금을 얻은 뒤에 잰다 (54와 같은 이유 : 연체 판단과 반납 시각이 잠금 대기 전 값이 되지 않게)
         LocalDateTime now = LocalDateTime.now(KOREA);
 
         // 2. 반납 사진 : 수령 사진 필수 카테고리(노트북·태블릿)만 반납 때도 1장 이상 필수 (11-07 결정, 11-24 앞·뒤 무관)
-        Category category = rental.getEquipmentModel().getCategory();
         if (category.isPickupPhotoRequired()
                 && !rentalImageRepository.existsByRentalIdAndImageType(rentalId, RentalImageType.RETURN)) {
             throw new RentalException(RentalErrorCode.RETURN_IMAGE_REQUIRED);
