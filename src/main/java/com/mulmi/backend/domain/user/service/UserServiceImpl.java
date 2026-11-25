@@ -165,15 +165,45 @@ public class UserServiceImpl implements UserService {
                 size,
                 Sort.by(Sort.Direction.DESC, "id")
         );
-        Page<User> users = userRepository.findUsers(
-                UserRole.STUDENT,
-                normalize(keyword),
-                status,
-                normalize(college),
-                normalize(department),
-                normalize(excludeDepartment),
-                pageable
-        );
+        String normalizedKeyword = normalize(keyword);
+        String normalizedCollege = normalize(college);
+        String normalizedDepartment = normalize(department);
+        String normalizedExcludeDepartment = normalize(excludeDepartment);
+        Page<User> users = status == null
+                ? userRepository.findUsers(
+                        UserRole.STUDENT,
+                        normalizedKeyword,
+                        normalizedCollege,
+                        normalizedDepartment,
+                        normalizedExcludeDepartment,
+                        pageable
+                )
+                : switch (status) {
+            case ACTIVE -> userRepository.findActiveUsers(
+                    UserRole.STUDENT,
+                    normalizedKeyword,
+                    normalizedCollege,
+                    normalizedDepartment,
+                    normalizedExcludeDepartment,
+                    pageable
+            );
+            case SUSPENDED -> userRepository.findSuspendedUsers(
+                    UserRole.STUDENT,
+                    normalizedKeyword,
+                    normalizedCollege,
+                    normalizedDepartment,
+                    normalizedExcludeDepartment,
+                    pageable
+            );
+            case WITHDRAWN -> userRepository.findWithdrawnUsers(
+                    UserRole.STUDENT,
+                    normalizedKeyword,
+                    normalizedCollege,
+                    normalizedDepartment,
+                    normalizedExcludeDepartment,
+                    pageable
+            );
+        };
         Set<Long> activeBlacklistUserIds = findActiveBlacklistUserIds(users.getContent());
         Page<AdminUserSummaryResponseDTO> responsePage = users.map(user ->
                 UserConverter.toAdminUserSummaryResponseDTO(

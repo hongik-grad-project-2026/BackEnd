@@ -171,10 +171,9 @@ class UserServiceImplTest {
                 20,
                 Sort.by(Sort.Direction.DESC, "id")
         );
-        given(userRepository.findUsers(
+        given(userRepository.findActiveUsers(
                 UserRole.STUDENT,
                 "홍",
-                UserStatus.ACTIVE,
                 "공과대학",
                 "컴퓨터공학과",
                 null,
@@ -219,7 +218,6 @@ class UserServiceImplTest {
                 null,
                 null,
                 null,
-                null,
                 pageable
         )).willReturn(new PageImpl<>(List.of(user), pageable, 1));
         given(blacklistRepository.findActiveUserIds(Set.of(1L))).willReturn(Set.of(1L));
@@ -251,7 +249,6 @@ class UserServiceImplTest {
                 null,
                 null,
                 null,
-                null,
                 pageable
         )).willReturn(new PageImpl<>(List.of(), pageable, 0));
 
@@ -259,7 +256,6 @@ class UserServiceImplTest {
 
         verify(userRepository).findUsers(
                 UserRole.STUDENT,
-                null,
                 null,
                 null,
                 null,
@@ -279,7 +275,6 @@ class UserServiceImplTest {
         );
         given(userRepository.findUsers(
                 UserRole.STUDENT,
-                null,
                 null,
                 null,
                 null,
@@ -310,10 +305,9 @@ class UserServiceImplTest {
                 20,
                 Sort.by(Sort.Direction.DESC, "id")
         );
-        given(userRepository.findUsers(
+        given(userRepository.findActiveUsers(
                 UserRole.STUDENT,
                 null,
-                UserStatus.ACTIVE,
                 null,
                 null,
                 "컴퓨터공학과",
@@ -331,10 +325,9 @@ class UserServiceImplTest {
         );
 
         assertThat(result.users()).isEmpty();
-        verify(userRepository).findUsers(
+        verify(userRepository).findActiveUsers(
                 UserRole.STUDENT,
                 null,
-                UserStatus.ACTIVE,
                 null,
                 null,
                 "컴퓨터공학과",
