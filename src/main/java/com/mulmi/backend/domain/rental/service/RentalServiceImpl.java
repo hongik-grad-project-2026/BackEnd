@@ -232,9 +232,11 @@ public class RentalServiceImpl implements RentalService {
                 .semester(semester)
                 .applicationType(ApplicationType.ON_DEMAND)
                 .purpose(dto.purpose().trim())
-                // 수령 기한(이 날짜 20:00)의 기준이라 클라이언트 값 대신 오늘(한국 날짜)로 둔다
+                // 수령 기한(이 날짜 20:00)의 기준이라 클라이언트 값 대신 서버가 정한다
                 //  지난 날짜면 받자마자 노쇼, 먼 날짜면 예약이 계속 남는다
-                .expectedPickupDate(now.toLocalDate())
+                //  20:00 이후 신청은 내일 : 오늘로 두면 기한이 이미 지나 수령(54)·취소(49)가 막히고 다음 날 노쇼가 된다
+                //  (내일이어도 수령은 일찍 와도 되므로 바로 받을 수 있다)
+                .expectedPickupDate(Semester.firstOnDemandPickupDate(now))
                 .memo(dto.memo())
                 .status(RentalStatus.READY_FOR_PICKUP)
                 .reviewedAt(now)
