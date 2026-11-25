@@ -100,11 +100,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
             WHERE u.role = :role
               AND (
                     u.status = com.mulmi.backend.domain.user.enums.UserStatus.SUSPENDED
-                    OR EXISTS (
-                        SELECT b.id
-                        FROM Blacklist b
-                        WHERE b.user = u
-                          AND b.releasedAt IS NULL
+                    OR (
+                        u.status = com.mulmi.backend.domain.user.enums.UserStatus.ACTIVE
+                        AND EXISTS (
+                            SELECT b.id
+                            FROM Blacklist b
+                            WHERE b.user = u
+                              AND b.releasedAt IS NULL
+                        )
                     )
                   )
               AND (:college IS NULL OR u.college = :college)
