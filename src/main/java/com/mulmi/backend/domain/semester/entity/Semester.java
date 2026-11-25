@@ -81,10 +81,16 @@ public class Semester extends BaseEntity {
     // 상시 수령희망일: 오늘부터 3일(오늘·내일·모레), 단 20:00 이후엔 오늘 제외
     // 다음 학기 개강일을 넘는지는 이 엔티티가 모르므로 서비스에서 검사한다
     public boolean isOnDemandPickupDateSelectable(LocalDate date, LocalDateTime now) {
-        LocalDate today = now.toLocalDate();
-        LocalDate first = now.toLocalTime().isBefore(CLOSING_TIME) ? today : today.plusDays(1);
-        LocalDate last = today.plusDays(ON_DEMAND_PICKUP_DAYS - 1);
+        LocalDate first = firstOnDemandPickupDate(now);
+        LocalDate last = now.toLocalDate().plusDays(ON_DEMAND_PICKUP_DAYS - 1);
         return !date.isBefore(first) && !date.isAfter(last);
+    }
+
+    // 상시 수령희망일로 고를 수 있는 첫날 : 20:00 전이면 오늘, 이후면 내일 (그날 수령 기한 20:00이 이미 지났으므로)
+    // 졸업전시 간식은 수령희망일을 받지 않고 이 날짜로 저장한다
+    public static LocalDate firstOnDemandPickupDate(LocalDateTime now) {
+        LocalDate today = now.toLocalDate();
+        return now.toLocalTime().isBefore(CLOSING_TIME) ? today : today.plusDays(1);
     }
 
     // 사전신청 수령 마감: 수령 기간 마지막 날 20:00 (지나면 노쇼)
