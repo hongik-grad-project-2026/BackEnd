@@ -9,6 +9,7 @@ import com.mulmi.backend.domain.equipment.exception.CategoryException;
 import com.mulmi.backend.domain.equipment.exception.code.CategoryErrorCode;
 import com.mulmi.backend.domain.equipment.repository.CategoryRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
+import com.mulmi.backend.domain.rental.service.SnackDraw;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final EquipmentModelRepository equipmentModelRepository;
+    private final SnackDraw snackDraw;
 
     // 카테고리 등록
     @Override
@@ -59,9 +61,11 @@ public class CategoryServiceImpl implements CategoryService {
 
     // 디비에 저장된 카테고리 목록을 읽어서 클라한테 돌려주는 메소드
     @Override
-    public List<CategoryResponseDTO> getCategories() {
+    public List<CategoryResponseDTO> getCategories(boolean student) {
         List<Category> categories = categoryRepository.findAllByDeletedAtIsNull();
         return categories.stream()
+                // 졸업전시 : 랜덤 간식 경품은 추첨으로만 나가므로 학생 탭에 보이지 않게 한다 (관리자는 재고 관리에 필요)
+                .filter(category -> !(student && snackDraw.isPrize(category)))
                 .map(CategoryConverter::toCategoryResponseDTO)
                 .toList();
     }

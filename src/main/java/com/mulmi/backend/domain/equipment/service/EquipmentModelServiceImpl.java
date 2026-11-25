@@ -30,6 +30,7 @@ import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository;
 import com.mulmi.backend.domain.equipment.repository.EquipmentModelRepository.CategoryModelCount;
 import com.mulmi.backend.domain.equipment.repository.LabelPrefixRepository;
 import com.mulmi.backend.domain.favorite.repository.FavoriteRepository;
+import com.mulmi.backend.domain.rental.service.SnackDraw;
 import com.mulmi.backend.domain.rental.stock.RentalStockCounter;
 import com.mulmi.backend.global.storage.S3StorageService;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +75,7 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     private final S3StorageService s3StorageService;
     private final FavoriteRepository favoriteRepository;
     private final RentalStockCounter rentalStockCounter;
+    private final SnackDraw snackDraw;
 
     // 모델 등록
     @Override
@@ -181,24 +183,29 @@ public class EquipmentModelServiceImpl implements EquipmentModelService {
     // 관리자 모델 목록 조회
     @Override
     public AdminEquipmentModelPageResponseDTO getAdminEquipmentModels(
-            Long userId, Long categoryId, String keyword, int page, int size) {
-        // 1. 모델 한 페이지 조회 (최신 등록순)
+            Long userId, boolean student, Long categoryId, String keyword, int page, int size) {
+        // 1. 모델 한 페이지 조회 (최신 등록순), 학생에게는 졸업전시 경품 카테고리를 숨긴다
         PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "id"));
         Page<EquipmentModel> models = equipmentModelRepository.searchModels(
-                categoryId, normalizeKeyword(keyword), pageable);
+                categoryId, normalizeKeyword(keyword), student ? SnackDraw.PRIZE_CATEGORY : null, pageable);
 
         // 2. 이번 페이지 모델들의 재고를 한 번에 집계 -> modelId로 꺼낼 수 있게 Map으로
         Map<Long, ModelStockCount> stockByModelId = countStock(models.getContent());
         Set<Long> favoriteModelIds = findFavoriteModelIds(userId, models.getContent());
 
         // 3. 모델마다 DTO로 변환 (기기 없는 모델은 집계 결과에 없으므로 0 / 0)
+        //    졸업전시 '랜덤' 카드는 자기 기기가 없으므로 경품 합계를 넣는다 (이번 페이지에 있을 때만 집계)
+        SnackDraw.PrizeStock prizeStock = models.getContent().stream().anyMatch(snackDraw::isRandom)
+                ? snackDraw.prizeStock()
+                : null;
         Page<AdminEquipmentModelSummaryResponseDTO> responsePage = models.map(model -> {
             ModelStockCount stock = stockByModelId.get(model.getId());
+            boolean random = prizeStock != null && snackDraw.isRandom(model);
             return EquipmentModelConverter.toAdminEquipmentModelSummaryResponseDTO(
                     model,
                     s3StorageService.createDownloadUrl(model.getModelImageUrl()),
-                    stock == null ? 0 : stock.getAvailableCount(),
-                    stock == null ? 0 : stock.getTotalCount(),
+                    random ? prizeStock.available() : stock == null ? 0 : stock.getAvailableCount(),
+                    random ? prizeStock.total() : stock == null ? 0 : stock.getTotalCount(),
                     favoriteModelIds.contains(model.getId())
             );
         });

@@ -28,7 +28,9 @@ public enum RentalErrorCode implements BaseErrorCode {
     INVALID_RENTAL_STATUS(HttpStatus.CONFLICT, "RENTAL409_5", "현재 상태에서는 처리할 수 없는 대여입니다."),
     PICKUP_DEADLINE_PASSED(HttpStatus.CONFLICT, "RENTAL409_6", "수령 기한이 지난 대여입니다."),
     PICKUP_IMAGE_REQUIRED(HttpStatus.CONFLICT, "RENTAL409_7", "수령 사진을 먼저 올려 주세요."),
-    RETURN_IMAGE_REQUIRED(HttpStatus.CONFLICT, "RENTAL409_8", "반납 사진을 먼저 올려 주세요.");
+    RETURN_IMAGE_REQUIRED(HttpStatus.CONFLICT, "RENTAL409_8", "반납 사진을 먼저 올려 주세요."),
+    // 졸업전시 간식 1인 1회 : 취소한 기록도 센다 (11-25 결정)
+    SNACK_ALREADY_RECEIVED(HttpStatus.CONFLICT, "RENTAL409_9", "졸업전시 간식은 한 번만 받을 수 있습니다.");
 
     private final HttpStatus status;
     private final String code;

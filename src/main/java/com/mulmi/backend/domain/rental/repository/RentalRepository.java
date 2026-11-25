@@ -22,6 +22,9 @@ public interface RentalRepository extends JpaRepository<Rental, Long> {
     boolean existsByUserIdAndEquipmentModelCategoryIdAndStatusIn(
             Long userId, Long categoryId, Collection<RentalStatus> statuses);
 
+    // 졸업전시 간식 1인 1회 : 간식·경품 카테고리(이름) 중 어디에든 대여 기록이 있는지 (상태 무관)
+    boolean existsByUserIdAndEquipmentModelCategoryNameIn(Long userId, Collection<String> categoryNames);
+
     // 블랙리스트 등록 시 아직 수령하지 않은 대여를 취소하기 위해 대상 행을 잠근다.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     List<Rental> findAllByUserIdAndSemesterIdAndStatusIn(

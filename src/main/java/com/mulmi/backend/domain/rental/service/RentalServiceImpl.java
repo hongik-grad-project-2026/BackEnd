@@ -65,6 +65,7 @@ public class RentalServiceImpl implements RentalService {
     private final RentalImageRepository rentalImageRepository;
     private final RentalStockCounter rentalStockCounter;
     private final BlacklistService blacklistService;
+    private final SnackDraw snackDraw;
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
 
@@ -75,6 +76,27 @@ public class RentalServiceImpl implements RentalService {
     public RentalCreateResponseDTO createRental(Long userId, RentalCreateRequestDTO dto) {
         // 서버 컨테이너는 UTC라서 한국 시간을 직접 만든다 (학기 기간·20:00 판단 기준)
         LocalDateTime now = LocalDateTime.now(KOREA);
+
+        // 2. 모델: 존재하고 대여 가능(AVAILABLE)이어야 한다
+        //    공유 잠금으로 읽는다 : 잠금 순서를 모델 → 학생 → 기기로 맞춰 모델 폐기(모델 → 기기)와 교착하지 않게 한다
+        //    (대여 INSERT의 외래 키 검사가 어차피 모델 행에 공유 잠금을 거는데, 기기를 잡은 뒤에 걸리면 순서가 반대가 된다)
+        //    간식인지 알아야 1단계(기간) 검사를 할지 정할 수 있어서 1단계보다 먼저 한다
+        EquipmentModel model = equipmentModelRepository.findWithShareLockByIdAndDeletedAtIsNull(dto.modelId())
+                .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
+        if (model.getRentalStatus() != EquipmentModelStatus.AVAILABLE) {
+            throw new RentalException(RentalErrorCode.MODEL_NOT_RENTABLE);
+        }
+        Category category = model.getCategory();
+
+        // 2-1. 졸업전시 간식 : 경품은 추첨으로만 나가므로 직접 신청은 없는 모델로 본다, 간식은 별도 흐름
+        //      (직접 신청은 배정되지 않는 것이 보장이고, 404는 DB까지 온 대여 가능 경품일 때다.
+        //       Redis 품절이면 Facade가 409_3, 대여 불가 경품이면 바로 위에서 409_2가 먼저 난다)
+        if (snackDraw.isPrize(category)) {
+            throw new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND);
+        }
+        if (snackDraw.isSnack(category)) {
+            return createSnackRental(userId, dto, model, now);
+        }
 
         // 1. 기간: 지금 학기 = 개강일이 오늘 이전인 학기 중 가장 최근
         //    사전신청(개강~7일) / 수령 기간(8~14일, 신청 불가) / 상시(15일~)
@@ -93,17 +115,7 @@ public class RentalServiceImpl implements RentalService {
         }
         ApplicationType applicationType = preApply ? ApplicationType.REGULAR : ApplicationType.ON_DEMAND;
 
-        // 2. 모델: 존재하고 대여 가능(AVAILABLE)이어야 한다
-        //    공유 잠금으로 읽는다 : 잠금 순서를 모델 → 학생 → 기기로 맞춰 모델 폐기(모델 → 기기)와 교착하지 않게 한다
-        //    (대여 INSERT의 외래 키 검사가 어차피 모델 행에 공유 잠금을 거는데, 기기를 잡은 뒤에 걸리면 순서가 반대가 된다)
-        EquipmentModel model = equipmentModelRepository.findWithShareLockByIdAndDeletedAtIsNull(dto.modelId())
-                .orElseThrow(() -> new EquipmentModelException(EquipmentModelErrorCode.MODEL_NOT_FOUND));
-        if (model.getRentalStatus() != EquipmentModelStatus.AVAILABLE) {
-            throw new RentalException(RentalErrorCode.MODEL_NOT_RENTABLE);
-        }
-
         // 4. 카테고리 × 기간: 보조배터리·기타(정기대여 불가)는 상시 기간부터만
-        Category category = model.getCategory();
         if (preApply && !category.isRegularRentalEnabled()) {
             throw new RentalException(RentalErrorCode.RENTAL_NOT_OPEN);
         }
@@ -173,6 +185,69 @@ public class RentalServiceImpl implements RentalService {
 
         return new RentalCreateResponseDTO(
                 rental.getId(), rental.getStatus(), rental.getApplicationType(), rental.getExpectedPickupDate());
+    }
+
+    // 졸업전시 간식 신청 (createRental 2-1에서 분기, 같은 트랜잭션)
+    //  학기 기간·수령희망일 검사를 하지 않고, 신청 즉시 승인 상태(수령 대기)로 만든다
+    //  제재(블랙리스트)는 일반 대여와 똑같이 적용한다 (11-25 결정 : 수령 54·제재 시 자동 취소와 같은 규칙)
+    //  반납이 없으므로 수령 처리(54)까지가 끝이다
+    private RentalCreateResponseDTO createSnackRental(Long userId, RentalCreateRequestDTO dto,
+                                                      EquipmentModel model, LocalDateTime now) {
+        // 1. 학기 : 기간 검사는 안 하지만 대여에 붙여 둔다
+        //    수령 처리(54)·노쇼(58)가 rental.getSemester().getId()를 쓰므로 null이면 500이 난다
+        Semester semester = semesterRepository
+                .findFirstByStartDateLessThanEqualOrderByStartDateDesc(now.toLocalDate())
+                .orElseThrow(() -> new RentalException(RentalErrorCode.RENTAL_NOT_OPEN));
+
+        // 2. 학생 행 잠금 + 계정 상태 + 제재 (일반 신청 6·6-1·6-2단계와 같음)
+        //    제재는 수령 처리(54)가 다시 검사하므로, 여기서 빼면 신청은 되고 수령에서 403이 난다
+        User user = userRepository.findWithLockById(userId)
+                .orElseThrow(() -> new UserException(UserErrorCode.USER_NOT_FOUND));
+        validateAccountStatus(user);
+        blacklistService.validateRentalEligibility(userId, semester.getId());
+
+        // 3. 1인 1회 : 간식·경품 카테고리 대여 기록이 상태와 관계없이 하나라도 있으면 409
+        //    진행 중만 세면, 꽝을 보고 수령 전에 취소(49)한 뒤 다시 뽑을 수 있다 (11-25 결정)
+        if (rentalRepository.existsByUserIdAndEquipmentModelCategoryNameIn(
+                userId, SnackDraw.ONE_PER_PERSON_CATEGORIES)) {
+            throw new RentalException(RentalErrorCode.SNACK_ALREADY_RECEIVED);
+        }
+
+        // 4. 기기 잠금 : 랜덤이면 경품을 추첨해 그 기기 1개, 일반 간식이면 그 모델의 기기 1개
+        EquipmentItem item = snackDraw.isRandom(model)
+                ? snackDraw.drawPrizeItem()
+                : equipmentItemRepository
+                        .findFirstByEquipmentModelIdAndStatusAndDeletedAtIsNullOrderByLabelNumberDescIdDesc(
+                                model.getId(), EquipmentItemStatus.AVAILABLE)
+                        .orElseThrow(() -> new RentalException(RentalErrorCode.OUT_OF_STOCK));
+
+        // 5. 기기 예약 + 대여 저장 : 상태를 READY_FOR_PICKUP으로 바로 둔다 (조교 승인 단계 없음)
+        //    approve()는 처리자(조교)를 받으므로 쓰지 않고 빌더로 상태와 시각만 넣는다
+        //    모델은 기기의 모델로 저장한다 : 랜덤이면 당첨 경품이 남아야 관리자 목록에서 무엇을 줄지 보인다
+        item.changeStatus(EquipmentItemStatus.RESERVED);
+        Rental rental = rentalRepository.save(Rental.builder()
+                .user(user)
+                .equipmentModel(item.getEquipmentModel())
+                .equipmentItem(item)
+                .semester(semester)
+                .applicationType(ApplicationType.ON_DEMAND)
+                .purpose(dto.purpose().trim())
+                // 수령 기한(이 날짜 20:00)의 기준이라 클라이언트 값 대신 오늘(한국 날짜)로 둔다
+                //  지난 날짜면 받자마자 노쇼, 먼 날짜면 예약이 계속 남는다
+                .expectedPickupDate(now.toLocalDate())
+                .memo(dto.memo())
+                .status(RentalStatus.READY_FOR_PICKUP)
+                .reviewedAt(now)
+                .build());
+
+        // 6. 응답 : 프론트가 바로 결과 화면(무엇을 받았는지)을 띄운다
+        EquipmentModel received = item.getEquipmentModel();
+        return new RentalCreateResponseDTO(
+                rental.getId(), rental.getStatus(), rental.getApplicationType(), rental.getExpectedPickupDate(),
+                received.getId(),
+                SnackDraw.displayName(received.getName()),
+                SnackDraw.rankOf(received.getName()),
+                s3StorageService.createDownloadUrl(received.getModelImageUrl()));
     }
 
     // 내 대여 목록 (조회라 클래스의 readOnly 트랜잭션을 그대로 쓴다)

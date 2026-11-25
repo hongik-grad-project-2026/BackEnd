@@ -79,16 +79,19 @@ public interface EquipmentModelRepository extends JpaRepository<EquipmentModel, 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<EquipmentModel> findWithLockById(Long id);
 
-    // 관리자 모델 목록 : 카테고리·검색어는 null이면 조건 무시
+    // 관리자 모델 목록 : 카테고리·검색어·숨길 카테고리는 null이면 조건 무시
+    //  hiddenCategoryName : 학생에게 졸업전시 경품 카테고리를 숨길 때 그 이름
     @Query("""
             SELECT m FROM EquipmentModel m
             WHERE m.deletedAt IS NULL
               AND (:categoryId IS NULL OR m.category.id = :categoryId)
               AND (:keyword IS NULL OR m.name LIKE CONCAT('%', :keyword, '%'))
+              AND (:hiddenCategoryName IS NULL OR m.category.name <> :hiddenCategoryName)
             """)
     Page<EquipmentModel> searchModels(
             @Param("categoryId") Long categoryId,
             @Param("keyword") String keyword,
+            @Param("hiddenCategoryName") String hiddenCategoryName,
             Pageable pageable
     );
 
@@ -103,10 +106,23 @@ public interface EquipmentModelRepository extends JpaRepository<EquipmentModel, 
     List<CategoryModelCount> countModelsByCategory();
 
     // 대여 재고 동기화(Redis) : 폐기되지 않은 모델의 id만 (엔티티 전체를 읽지 않음)
+    //  졸업전시 '간식' 카테고리의 '랜덤' 카드는 뺀다 : 자기 기기가 0대라 키가 0이 되면 문지기가 바로 품절로 돌려보낸다
+    //  키가 없으면 문지기는 DB로 넘기고, DB에서 경품을 추첨한다 (SnackDraw)
     @Query("""
             SELECT m.id FROM EquipmentModel m
             WHERE m.deletedAt IS NULL
+              AND NOT (m.name = '랜덤' AND m.category.name = '간식')
             """)
     List<Long> findAllActiveIds();
+
+    // 졸업전시 랜덤 간식 추첨 후보 : 그 카테고리의 폐기되지 않은 대여 가능 모델 id
+    //  엔티티 대신 id만 읽는다 : 뒤에서 뽑힌 모델을 공유 잠금으로 처음 읽어야 1차 캐시의 옛 객체를 받지 않는다
+    @Query("""
+            SELECT m.id FROM EquipmentModel m
+            WHERE m.category.name = :categoryName
+              AND m.deletedAt IS NULL
+              AND m.rentalStatus = com.mulmi.backend.domain.equipment.enums.EquipmentModelStatus.AVAILABLE
+            """)
+    List<Long> findRentableIdsByCategoryName(@Param("categoryName") String categoryName);
 
 }
