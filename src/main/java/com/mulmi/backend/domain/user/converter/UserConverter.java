@@ -62,7 +62,8 @@ public class UserConverter {
 
     public static AdminUserSummaryResponseDTO toAdminUserSummaryResponseDTO(
             User user,
-            String profileImageUrl
+            String profileImageUrl,
+            UserStatus effectiveStatus
     ) {
         return new AdminUserSummaryResponseDTO(
                 user.getId(),
@@ -73,14 +74,15 @@ public class UserConverter {
                 user.getCollege(),
                 user.getDepartment(),
                 profileImageUrl,
-                user.getStatus(),
+                effectiveStatus,
                 user.getCreatedAt()
         );
     }
 
     public static AdminUserDetailResponseDTO toAdminUserDetailResponseDTO(
             User user,
-            String profileImageUrl
+            String profileImageUrl,
+            UserStatus effectiveStatus
     ) {
         return new AdminUserDetailResponseDTO(
                 user.getId(),
@@ -92,7 +94,7 @@ public class UserConverter {
                 user.getCollege(),
                 user.getDepartment(),
                 profileImageUrl,
-                user.getStatus(),
+                effectiveStatus,
                 user.getCreatedAt(),
                 user.getUpdatedAt()
         );

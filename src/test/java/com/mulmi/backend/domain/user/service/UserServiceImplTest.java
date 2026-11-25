@@ -12,6 +12,7 @@ import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.UserException;
 import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
+import com.mulmi.backend.domain.blacklist.repository.BlacklistRepository;
 import com.mulmi.backend.global.jwt.JwtUtil;
 import com.mulmi.backend.global.storage.S3StorageService;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,6 +40,9 @@ class UserServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private BlacklistRepository blacklistRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -63,6 +68,17 @@ class UserServiceImplTest {
         assertThat(result.studentId()).isEqualTo("C123456");
         assertThat(result.name()).isEqualTo("홍길동");
         assertThat(result.status()).isEqualTo(UserStatus.ACTIVE);
+    }
+
+    @Test
+    void getUserReturnsSuspendedStatusWhenActiveBlacklistExists() {
+        User user = createUser();
+        given(userRepository.findById(1L)).willReturn(Optional.of(user));
+        given(blacklistRepository.existsByUserIdAndReleasedAtIsNull(1L)).willReturn(true);
+
+        AdminUserDetailResponseDTO result = userService.getUser(1L);
+
+        assertThat(result.status()).isEqualTo(UserStatus.SUSPENDED);
     }
 
     @Test
@@ -187,6 +203,39 @@ class UserServiceImplTest {
         assertThat(result.totalElements()).isEqualTo(1);
         assertThat(result.totalPages()).isEqualTo(1);
         assertThat(result.hasNext()).isFalse();
+    }
+
+    @Test
+    void getUsersReturnsSuspendedStatusForActivelyBlacklistedStudent() {
+        User user = createUser();
+        PageRequest pageable = PageRequest.of(
+                0,
+                20,
+                Sort.by(Sort.Direction.DESC, "id")
+        );
+        given(userRepository.findUsers(
+                UserRole.STUDENT,
+                null,
+                null,
+                null,
+                null,
+                null,
+                pageable
+        )).willReturn(new PageImpl<>(List.of(user), pageable, 1));
+        given(blacklistRepository.findActiveUserIds(Set.of(1L))).willReturn(Set.of(1L));
+
+        AdminUserPageResponseDTO result = userService.getUsers(
+                null,
+                null,
+                null,
+                null,
+                null,
+                0,
+                20
+        );
+
+        assertThat(result.users()).hasSize(1);
+        assertThat(result.users().get(0).status()).isEqualTo(UserStatus.SUSPENDED);
     }
 
     @Test

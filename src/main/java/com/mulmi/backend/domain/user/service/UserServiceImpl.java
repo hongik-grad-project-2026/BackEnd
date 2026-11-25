@@ -18,6 +18,7 @@ import com.mulmi.backend.domain.user.enums.UserStatus;
 import com.mulmi.backend.domain.user.exception.UserException;
 import com.mulmi.backend.domain.user.exception.code.UserErrorCode;
 import com.mulmi.backend.domain.user.repository.UserRepository;
+import com.mulmi.backend.domain.blacklist.repository.BlacklistRepository;
 
 import com.mulmi.backend.global.jwt.JwtUtil;
 import com.mulmi.backend.global.storage.S3StorageService;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.HashSet;
 import java.util.Set;
 
 @Service
@@ -48,6 +50,7 @@ public class UserServiceImpl implements UserService {
     );
 
     private final UserRepository userRepository;
+    private final BlacklistRepository blacklistRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final S3StorageService s3StorageService;
@@ -171,10 +174,12 @@ public class UserServiceImpl implements UserService {
                 normalize(excludeDepartment),
                 pageable
         );
+        Set<Long> activeBlacklistUserIds = findActiveBlacklistUserIds(users.getContent());
         Page<AdminUserSummaryResponseDTO> responsePage = users.map(user ->
                 UserConverter.toAdminUserSummaryResponseDTO(
                         user,
-                        createProfileImageUrl(user)
+                        createProfileImageUrl(user),
+                        effectiveStatus(user, activeBlacklistUserIds.contains(user.getId()))
                 )
         );
 
@@ -278,8 +283,31 @@ public class UserServiceImpl implements UserService {
     private AdminUserDetailResponseDTO toAdminUserDetailResponseDTO(User user) {
         return UserConverter.toAdminUserDetailResponseDTO(
                 user,
-                createProfileImageUrl(user)
+                createProfileImageUrl(user),
+                effectiveStatus(
+                        user,
+                        blacklistRepository.existsByUserIdAndReleasedAtIsNull(user.getId())
+                )
         );
+    }
+
+    private Set<Long> findActiveBlacklistUserIds(List<User> users) {
+        if (users.isEmpty()) {
+            return Set.of();
+        }
+
+        Set<Long> userIds = new HashSet<>();
+        for (User user : users) {
+            userIds.add(user.getId());
+        }
+        return blacklistRepository.findActiveUserIds(userIds);
+    }
+
+    private UserStatus effectiveStatus(User user, boolean hasActiveBlacklist) {
+        if (user.getStatus() == UserStatus.ACTIVE && hasActiveBlacklist) {
+            return UserStatus.SUSPENDED;
+        }
+        return user.getStatus();
     }
 
     private String createProfileImageUrl(User user) {
